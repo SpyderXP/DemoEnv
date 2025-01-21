@@ -23,13 +23,17 @@ DEPS	:= $(wildcard inc/*.h)
 TARGET		:= crypto_tool
 
 # 添加需要搜索的头文件路径
-CFLAGS	+= -Iinc -I../demo_logger/inc -I../demo_crypto/inc
+CFLAGS	+= -Iinc -I../common_inc -I../demo_crypto/inc
 
 # 添加需要搜索的库文件目录及链接选项
-LDFLAGS += -rdynamic -no-pie -L../demo_crypto/lib/x86 -L../demo_logger/lib/x86
+LDFLAGS += -rdynamic -no-pie -L../thd_lib/x86 -L../demo_crypto/lib/x86 -L../demo_logger/lib/x86
 
 # 添加需要链接的库文件
-LDLIBS	+= -Wl,-Bstatic -lcustom_crypto -llogger -Wl,-Bdynamic -lssl -lcrypto -lm -lpthread -lstdc++
+ifeq ($(LIB_TYPE),dynamic)
+	LDLIBS	+= -lcustom_crypto -llogger -lcjson -lssl -lcrypto -lm -lpthread -lstdc++
+else
+	LDLIBS	+= -Wl,-Bstatic -lcustom_crypto -llogger -lcjson -Wl,-Bdynamic -lssl -lcrypto -lm -lpthread -lstdc++
+endif
 
 .PHONY : all build clean
 

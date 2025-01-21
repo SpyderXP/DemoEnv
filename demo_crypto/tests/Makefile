@@ -5,11 +5,14 @@ CXX = g++
 CC = gcc
 
 # 编译器选项
-CXXFLAGS = -std=c++11 -I./ -I../inc
-CFLAGS = -I./ -I../../demo_logger/inc/ -I../inc
+CXXFLAGS = -std=c++11 -I./ -I../../common_inc/ -I../inc
+CFLAGS = -I./ -I../../common_inc/ -I../inc
+
+# 添加需要搜索的库文件目录及链接选项
+LDFLAGS += -L../../thd_lib/x86 -L../../demo_logger/lib/x86
 
 # 链接器选项
-LDFLAGS = -llogger -lssl -lcrypto -lgtest -lgtest_main -lpthread
+LDLIBS = -Wl,-Bstatic -llogger -lcjson -Wl,-Bdynamic -lssl -lcrypto -lgtest -lgtest_main -lpthread
 
 # 目标文件目录
 OBJ_DIR = obj
@@ -38,7 +41,7 @@ $(OBJ_DIR)/%.o: ./%.cpp | $(OBJ_DIR)
 
 # 链接目标文件生成可执行文件
 $(TARGET): $(OBJS) $(TEST_OBJS)
-	$(CXX) $^ -o $@ $(LDFLAGS)
+	$(CXX) $^ -o $@ $(LDFLAGS) $(LDLIBS)
 
 # 清理生成的文件
 clean:

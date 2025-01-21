@@ -26,10 +26,17 @@ STATIC_LIB	:= $(LIB_DIR)/liblogger.a
 SHARED_LIB	:= $(LIB_DIR)/liblogger.so
 
 # 添加需要搜索的头文件路径
-CFLAGS	+= -Iinc -fPIC
+CFLAGS	+= -Iinc -I../common_inc -fPIC
+
+# 添加需要搜索的库文件目录及链接选项
+LDFLAGS += -L../thd_lib/x86
 
 # 添加需要链接的库文件
-LDLIBS	+= -lm -lpthread -lstdc++
+ifeq ($(LIB_TYPE),dynamic)
+	LDLIBS	+= -lcjson -lm -lpthread -lstdc++
+else
+	LDLIBS	+= -Wl,-Bstatic -lcjson -Wl,-Bdynamic -lm -lpthread -lstdc++
+endif
 
 .PHONY : all build clean
 
@@ -49,7 +56,7 @@ $(STATIC_LIB) : $(OBJS) | $(LIB_DIR)
 
 $(SHARED_LIB) : $(OBJS) | $(LIB_DIR)
 #	@echo "$(CC) $@"
-	$(CC) -shared -o $@ $^ $(LDLIBS)
+	$(CC) -shared -o $@ $^ $(LDFLAGS) $(LDLIBS)
 
 clean :
 	$(RM) $(OBJS) $(STATIC_LIB) $(SHARED_LIB)
