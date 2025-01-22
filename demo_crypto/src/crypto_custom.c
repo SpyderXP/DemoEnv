@@ -48,7 +48,7 @@ char g_origin_path[PATHNAME_LEN]                = {0};  /* 初始文件路径 */
 char g_encrypt_path[PATHNAME_LEN]               = {0};  /* 加密文件路径 */
 char g_decrypt_path[PATHNAME_LEN]               = {0};  /* 解密文件路径 */
 char g_specified_filename[FILENAME_LEN]         = {0};  /* 指定加密/解密的文件名称 */
-char g_openssl_key_path[PATHNAME_LEN]           = {0};  /* 密钥文件路径 */
+char g_crypto_key_fullpath[PATHNAME_LEN]        = {0};  /* 密钥文件路径(包含文件名) */
 char g_crypto_algo_name[CRYPTO_ALGO_NAMELEN]    = {0};  /* 加密算法名称 */
 
 /* 加密/解密方法集合 */
@@ -68,7 +68,7 @@ struct option g_long_options[] =
     {"oridir",      required_argument,  NULL, 'o'},
     {"encryptdir",  required_argument,  NULL, 'e'},
     {"decryptdir",  required_argument,  NULL, 'd'},
-    {"keydir",      required_argument,  NULL, 'k'},
+    {"key",         required_argument,  NULL, 'k'},
     {"file",        required_argument,  NULL, 'f'},
     {"algo",        required_argument,  NULL, 'a'},
     {"help",        no_argument,        NULL, 'h'},
@@ -91,14 +91,14 @@ void help_intro(void)
     fprintf(stdout, "\t-o\t--oridir\tOriginal file path[Required arg]\n");
     fprintf(stdout, "\t-e\t--encryptdir\tEncrypted file path[Required arg]\n");
     fprintf(stdout, "\t-d\t--decryptdir\tDecrypted file path[Required arg]\n");
-    fprintf(stdout, "\t-k\t--keydir\tOpenssl AES key file path[Required arg]\n");
+    fprintf(stdout, "\t-k\t--key\tEncryption/Decryption key file[Required arg]\n");
     fprintf(stdout, "\t-f\t--file\t\tFile to Encrypt/Decrypt[Required arg]\n");
     fprintf(stdout, "\t-h\t--help\t\tHelp Manual[No arg]\n");
     fprintf(stdout, "\nExample:\n");
-    fprintf(stdout, "\tEncrypt: ./crypto_tool -a aes256 -o ./origin -e ./encrypt -k ./etc -f hscy.img\n");
-    fprintf(stdout, "\tDecrypt: ./crypto_tool -a aes256 -e ./encrypt -d ./decrypt -k ./etc -f hscy.img\n");
+    fprintf(stdout, "\tEncrypt: ./crypto_tool -a aes256 -o ./origin -e ./encrypt -k ./etc/hscy.img.aes256.key -f hscy.img\n");
+    fprintf(stdout, "\tDecrypt: ./crypto_tool -a aes256 -e ./encrypt -d ./decrypt -k ./etc/hscy.img.aes256.key -f hscy.img\n");
     fprintf(stdout, "\tEncrypt && Decrypt: ./crypto_tool -a aes256 -o ./origin -e ./encrypt -d ./decrypt \
--k ./etc -f hscy.img\n");
+-k ./etc/hscy.img.aes256.key -f hscy.img\n");
     fprintf(stdout, "\n****************************************************************************************\n");
 }
 
@@ -146,7 +146,7 @@ int crypto_parse_command_line(int argc, char **argv)
             break;
 
         case 'k':
-            snprintf(g_openssl_key_path, sizeof(g_openssl_key_path), "%s", optarg);
+            snprintf(g_crypto_key_fullpath, sizeof(g_crypto_key_fullpath), "%s", optarg);
             break;
 
         case 'f':
@@ -175,18 +175,39 @@ int crypto_parse_command_line(int argc, char **argv)
 /************************************************************************* 
 *  负责人    : xupeng
 *  创建日期  : 20250117
-*  函数功能  : 检查必填参数(文件名/密钥路径/算法名).
+*  函数功能  : 检查必填加密参数(文件名/算法名).
 *  输入参数  : 无.
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int crypto_check_required_param(void)
+int crypto_check_required_encryption_param(void)
 {
     if (0 == strcmp(g_specified_filename, "") || 
-        0 == strcmp(g_openssl_key_path, "") || 
         0 == strcmp(g_crypto_algo_name, ""))
     {
-        APP_LOG_ERROR("-a algo, -f filename and -k keypath are required\n");
+        APP_LOG_ERROR("-a algo, -f filename are required to encrypt file\n");
+        help_intro();
+        return -1;
+    }
+
+    return 0;
+}
+
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20250117
+*  函数功能  : 检查必填解密参数(文件名/密钥路径/算法名).
+*  输入参数  : 无.
+*  输出参数  : 无.
+*  返回值    : 0 - 成功  -1 - 失败.
+*************************************************************************/
+int crypto_check_required_decryption_param(void)
+{
+    if (0 == strcmp(g_specified_filename, "") || 
+        0 == strcmp(g_crypto_key_fullpath, "") || 
+        0 == strcmp(g_crypto_algo_name, ""))
+    {
+        APP_LOG_ERROR("-a algo, -f filename and -k keydir are required to decrypt file\n");
         help_intro();
         return -1;
     }
@@ -233,13 +254,13 @@ bool is_decryption_request(void)
 /************************************************************************* 
 *  负责人    : xupeng
 *  创建日期  : 20250117
-*  函数功能  : 构造随机的AES加密密钥，并将密钥作为文件保存至指定路径.
+*  函数功能  : 获取AES密钥.
 *  输入参数  : infile - 指定加密的文件名.
 *  输出参数  : key - 256位AES 密钥.
 *             iv - AES 向量.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int create_random_openssl_aes256_key(uint8_t *key, uint8_t *iv, const char *infile)
+int read_openssl_aes256_key_info(uint8_t *key, uint8_t *iv, const char *infile)
 {
     FILE *fp = NULL;
     char path[FULL_FILENAME_LEN] = {0};
@@ -250,60 +271,7 @@ int create_random_openssl_aes256_key(uint8_t *key, uint8_t *iv, const char *infi
         return -1;
     }
 
-    /* 生成随机密钥 */
-    if (0 == RAND_bytes(key, AES_KEY_LEN))
-    {
-        APP_LOG_ERROR("RAND_bytes failed\n");
-        return -1;
-    }
-
-    if (0 == RAND_bytes(iv, AES_IV_LEN))
-    {
-        APP_LOG_ERROR("RAND_bytes failed\n");
-        return -1;
-    }
-
-    snprintf(path, sizeof(path), "%s/%s.aes256.key", g_openssl_key_path, infile);
-    fp = fopen(path, "wb");
-    if (NULL == fp)
-    {
-        APP_LOG_ERROR("fopen failed[%s]\n", path);
-        return -1;
-    }
-
-    fwrite(key, 1, AES_KEY_LEN, fp);
-    fwrite(iv, 1, AES_IV_LEN, fp);
-
-    if (fp != NULL)
-    {
-        fclose(fp);
-        fp = NULL;
-    }
-
-    return 0;
-}
-
-/************************************************************************* 
-*  负责人    : xupeng
-*  创建日期  : 20250117
-*  函数功能  : 获取AES加密密钥.
-*  输入参数  : infile - 指定加密的文件名.
-*  输出参数  : key - 256位AES 密钥.
-*             iv - AES 向量.
-*  返回值    : 0 - 成功  -1 - 失败.
-*************************************************************************/
-int get_openssl_aes256_key_info(uint8_t *key, uint8_t *iv, const char *infile)
-{
-    FILE *fp = NULL;
-    char path[FULL_FILENAME_LEN] = {0};
-
-    if (NULL == key || NULL == iv || NULL == infile)
-    {
-        APP_LOG_ERROR("Parameter is NULL[key: %p][iv: %p][infile: %p]\n", key, iv, infile);
-        return -1;
-    }
-
-    snprintf(path, sizeof(path), "%s/%s.aes256.key", g_openssl_key_path, infile);
+    snprintf(path, sizeof(path), "%s", infile);
     fp = fopen(path, "rb");
     if (NULL == fp)
     {
@@ -318,6 +286,70 @@ int get_openssl_aes256_key_info(uint8_t *key, uint8_t *iv, const char *infile)
     {
         fclose(fp);
         fp = NULL;
+    }
+
+    return 0;
+}
+
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20250117
+*  函数功能  : 构造随机的AES加密密钥，并将密钥作为文件保存至指定路径.
+*  输入参数  : infile - 指定加密的文件名.
+*  输出参数  : key - 256位AES 密钥.
+*             iv - AES 向量.
+*  返回值    : 0 - 成功  -1 - 失败.
+*************************************************************************/
+int read_or_create_random_openssl_aes256_key(uint8_t *key, uint8_t *iv, const char *infile)
+{
+    FILE *fp = NULL;
+    char path[FULL_FILENAME_LEN] = {0};
+
+    if (NULL == key || NULL == iv || NULL == infile)
+    {
+        APP_LOG_ERROR("Parameter is NULL[key: %p][iv: %p][infile: %p]\n", key, iv, infile);
+        return -1;
+    }
+
+    if (0 == strcmp(g_crypto_key_fullpath, ""))
+    {
+        /* 生成随机密钥 */
+        if (0 == RAND_bytes(key, AES_KEY_LEN))
+        {
+            APP_LOG_ERROR("RAND_bytes failed\n");
+            return -1;
+        }
+
+        if (0 == RAND_bytes(iv, AES_IV_LEN))
+        {
+            APP_LOG_ERROR("RAND_bytes failed\n");
+            return -1;
+        }
+
+        snprintf(path, sizeof(path), "%s/%s.aes256.key", g_encrypt_path, infile);
+        fp = fopen(path, "wb");
+        if (NULL == fp)
+        {
+            APP_LOG_ERROR("fopen failed[%s]\n", path);
+            return -1;
+        }
+
+        fwrite(key, 1, AES_KEY_LEN, fp);
+        fwrite(iv, 1, AES_IV_LEN, fp);
+
+        if (fp != NULL)
+        {
+            fclose(fp);
+            fp = NULL;
+        }
+    }
+    else 
+    {
+        if (read_openssl_aes256_key_info(key, iv, g_crypto_key_fullpath) != 0)
+        {
+            APP_LOG_ERROR("Failed to read openssl aes256 key info[%s]\n", g_crypto_key_fullpath);
+            return -1;
+        }
     }
 
     return 0;
@@ -354,7 +386,7 @@ int aes256_encrypt_specified_mmap_addr(const char *addr, int datalen, const char
     }
 
     /* 生成随机密钥 */
-    if (create_random_openssl_aes256_key(key, iv, infile) != 0)
+    if (read_or_create_random_openssl_aes256_key(key, iv, infile) != 0)
     {
         APP_LOG_ERROR("Failed to create random openssl aes256 key\n");
         return -1;
@@ -480,9 +512,9 @@ int aes256_decrypt_specified_mmap_addr(const char *addr, int datalen, const char
         return -1;
     }
 
-    if (get_openssl_aes256_key_info(key, iv, infile) != 0)
+    if (read_openssl_aes256_key_info(key, iv, g_crypto_key_fullpath) != 0)
     {
-        APP_LOG_ERROR("Failed to get openssl aes256 key info\n");
+        APP_LOG_ERROR("Failed to read openssl aes256 key info[file: %s]\n", g_crypto_key_fullpath);
         return -1;
     }
 
@@ -743,7 +775,7 @@ void crypto_main(int argc, char **argv)
         return ;
     }
 
-    if (crypto_check_required_param() != 0)
+    if (crypto_check_required_decryption_param() != 0)
     {
         return ;
     }
@@ -785,35 +817,35 @@ void crypto_main(int argc, char **argv)
 *  函数功能  : 文件加密接口.
 *  输入参数  : filename - 待加密文件名.
 *             algo - 加密算法名称字符串.
-*             key_path - 密钥生成目录.
+*             key_path - 密钥目录(填空字符串则生成随机密钥至加密目录).
 *             origin_path - 待加密文件路径.
 *             encrypt_path - 指定的加密文件生成路径.
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
-*  其他     : 目前支持的加密算法 aes256.
+*  其他     : 目前支持的加密算法(algo参数) aes256.
 *************************************************************************/
 int crypto_encrypt_file(const char *filename, 
                         const char *algo, 
-                        const char *key_path, 
+                        const char *key_file, 
                         const char *origin_path, 
                         const char *encrypt_path)
 {
-    if (NULL == filename || NULL == algo || NULL == key_path || NULL == origin_path || NULL == encrypt_path)
+    if (NULL == filename || NULL == algo || NULL == key_file || NULL == origin_path || NULL == encrypt_path)
     {
-        APP_LOG_ERROR("Parameter is NULL[filename: %p][algo: %p][key_path: %p][origin_path: %p][encrypt_path: %p]\n", 
-                        filename, algo, key_path, origin_path, encrypt_path);
+        APP_LOG_ERROR("Parameter is NULL[filename: %p][algo: %p][key_file: %p][origin_path: %p][encrypt_path: %p]\n", 
+                        filename, algo, key_file, origin_path, encrypt_path);
         return -1;
     }
 
     /* 参数传递 */
     snprintf(g_specified_filename, sizeof(g_specified_filename), "%s", filename);
     snprintf(g_crypto_algo_name, sizeof(g_crypto_algo_name), "%s", algo);
-    snprintf(g_openssl_key_path, sizeof(g_openssl_key_path), "%s", key_path);
+    snprintf(g_crypto_key_fullpath, sizeof(g_crypto_key_fullpath), "%s", key_file);
     snprintf(g_origin_path, sizeof(g_origin_path), "%s", origin_path);
     snprintf(g_encrypt_path, sizeof(g_encrypt_path), "%s", encrypt_path);
 
     /* 必要参数检验 */
-    if (crypto_check_required_param() != 0)
+    if (crypto_check_required_encryption_param() != 0)
     {
         return -1;
     }
@@ -844,35 +876,35 @@ int crypto_encrypt_file(const char *filename,
 *  函数功能  : 文件解密接口.
 *  输入参数  : filename - 待解密文件名.
 *             algo - 解密算法名称字符串.
-*             key_path - 密钥存放目录.
+*             key_file - 密钥存放目录(包含文件名).
 *             encrypt_path - 待解密文件路径.
 *             decrypt_path - 指定的解密文件生成路径.
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
-*  其他     : 目前支持的解密算法 aes256.
+*  其他     : 目前支持的解密算法(algo参数) aes256.
 *************************************************************************/
 int crypto_decrypt_file(const char *filename, 
                         const char *algo, 
-                        const char *key_path, 
+                        const char *key_file, 
                         const char *encrypt_path, 
                         const char *decrypt_path)
 {
-    if (NULL == filename || NULL == algo || NULL == key_path || NULL == encrypt_path || NULL == decrypt_path)
+    if (NULL == filename || NULL == algo || NULL == key_file || NULL == encrypt_path || NULL == decrypt_path)
     {
-        APP_LOG_ERROR("Parameter is NULL[filename: %p][algo: %p][key_path: %p][encrypt_path: %p][decrypt_path: %p]\n", 
-                        filename, algo, key_path, encrypt_path, decrypt_path);
+        APP_LOG_ERROR("Parameter is NULL[filename: %p][algo: %p][key_file: %p][encrypt_path: %p][decrypt_path: %p]\n", 
+                        filename, algo, key_file, encrypt_path, decrypt_path);
         return -1;
     }
 
     /* 参数传递 */
     snprintf(g_specified_filename, sizeof(g_specified_filename), "%s", filename);
     snprintf(g_crypto_algo_name, sizeof(g_crypto_algo_name), "%s", algo);
-    snprintf(g_openssl_key_path, sizeof(g_openssl_key_path), "%s", key_path);
+    snprintf(g_crypto_key_fullpath, sizeof(g_crypto_key_fullpath), "%s", key_file);
     snprintf(g_encrypt_path, sizeof(g_encrypt_path), "%s", encrypt_path);
     snprintf(g_decrypt_path, sizeof(g_decrypt_path), "%s", decrypt_path);
 
     /* 必要参数检验 */
-    if (crypto_check_required_param() != 0)
+    if (crypto_check_required_decryption_param() != 0)
     {
         return -1;
     }

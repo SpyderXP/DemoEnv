@@ -20,7 +20,7 @@ extern "C" {
 *  函数功能  : 文件加密接口.
 *  输入参数  : filename - 待加密文件名.
 *             algo - 加密算法名称字符串.
-*             key_path - 密钥生成目录.
+*             key_path - 密钥目录(填空字符串则生成随机密钥至加密目录).
 *             origin_path - 待加密文件路径.
 *             encrypt_path - 指定的加密文件生成路径.
 *  输出参数  : 无.
@@ -29,7 +29,7 @@ extern "C" {
 *************************************************************************/
 int crypto_encrypt_file(const char *filename, 
                         const char *algo, 
-                        const char *key_path, 
+                        const char *key_file, 
                         const char *origin_path, 
                         const char *encrypt_path);
 
@@ -39,7 +39,7 @@ int crypto_encrypt_file(const char *filename,
 *  函数功能  : 文件解密接口.
 *  输入参数  : filename - 待解密文件名.
 *             algo - 解密算法名称字符串.
-*             key_path - 密钥存放目录.
+*             key_file - 密钥存放目录(包含文件名).
 *             encrypt_path - 待解密文件路径.
 *             decrypt_path - 指定的解密文件生成路径.
 *  输出参数  : 无.
@@ -48,7 +48,7 @@ int crypto_encrypt_file(const char *filename,
 *************************************************************************/
 int crypto_decrypt_file(const char *filename, 
                         const char *algo, 
-                        const char *key_path, 
+                        const char *key_file, 
                         const char *encrypt_path, 
                         const char *decrypt_path);
 
