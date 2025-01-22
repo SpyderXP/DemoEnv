@@ -9,10 +9,10 @@ CXXFLAGS = -std=c++11 -I./ -I../inc -I../../common_inc
 CFLAGS = -I./ -I../inc -I../../common_inc
 
 # 添加需要搜索的库文件目录及链接选项
-LDFLAGS += -L../../thd_lib/x86 -L../../demo_common/lib/x86
+LDFLAGS += -L../../thd_lib/x86
 
 # 链接器选项
-LDLIBS = -Wl,-Bstatic -lcjson -lcommon -Wl,-Bdynamic -lgtest -lgtest_main -lpthread
+LDLIBS = -lgtest -lgtest_main -lpthread
 
 # 目标文件目录
 OBJ_DIR = obj

@@ -29,13 +29,13 @@ SHARED_LIB	:= $(LIB_DIR)/liblogger.so
 CFLAGS	+= -Iinc -I../common_inc -fPIC
 
 # 添加需要搜索的库文件目录及链接选项
-LDFLAGS += -L../thd_lib/x86
+LDFLAGS += -L../thd_lib/x86 -L../demo_common/lib/x86
 
 # 添加需要链接的库文件
 ifeq ($(LIB_TYPE),dynamic)
-	LDLIBS	+= -lcjson -lm -lpthread -lstdc++
+	LDLIBS	+= -lcjson -lcommon -lm -lpthread -lstdc++
 else
-	LDLIBS	+= -Wl,-Bstatic -lcjson -Wl,-Bdynamic -lm -lpthread -lstdc++
+	LDLIBS	+= -Wl,-Bstatic -lcjson -lcommon -Wl,-Bdynamic -lm -lpthread -lstdc++
 endif
 
 .PHONY : all build clean
