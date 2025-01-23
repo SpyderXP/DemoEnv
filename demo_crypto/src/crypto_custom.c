@@ -48,7 +48,7 @@ char g_origin_path[PATHNAME_LEN]                = {0};  /* 初始文件路径 */
 char g_encrypt_path[PATHNAME_LEN]               = {0};  /* 加密文件路径 */
 char g_decrypt_path[PATHNAME_LEN]               = {0};  /* 解密文件路径 */
 char g_specified_filename[FILENAME_LEN]         = {0};  /* 指定加密/解密的文件名称 */
-char g_crypto_key_fullpath[PATHNAME_LEN]        = {0};  /* 密钥文件路径(包含文件名) */
+char g_crypto_key_fullpath[FULL_FILENAME_LEN]   = {0};  /* 密钥文件路径(包含文件名) */
 char g_crypto_algo_name[CRYPTO_ALGO_NAMELEN]    = {0};  /* 加密算法名称 */
 
 /* 加密/解密方法集合 */
@@ -207,7 +207,7 @@ int crypto_check_required_decryption_param(void)
         0 == strcmp(g_crypto_key_fullpath, "") || 
         0 == strcmp(g_crypto_algo_name, ""))
     {
-        APP_LOG_ERROR("-a algo, -f filename and -k keydir are required to decrypt file\n");
+        APP_LOG_ERROR("-a algo, -f filename and -k key are required to decrypt file\n");
         help_intro();
         return -1;
     }
@@ -775,16 +775,13 @@ void crypto_main(int argc, char **argv)
         return ;
     }
 
-    if (crypto_check_required_decryption_param() != 0)
-    {
-        return ;
-    }
-
     for (int i = 0; i < sizeof(g_crypto_func_set) / sizeof(CRYPTO_FUNC_SET_T); i++)
     {
         if (0 == strcmp(g_crypto_algo_name, g_crypto_func_set[i].algo_name))
         {
-            if (is_encryption_request() && g_crypto_func_set[i].encrypt != NULL)
+            if (0 == crypto_check_required_encryption_param() && 
+                is_encryption_request() && 
+                g_crypto_func_set[i].encrypt != NULL)
             {
                 APP_LOG_DEBUG("Encryption start\n");
                 if (g_crypto_func_set[i].encrypt(g_specified_filename) != 0)
@@ -794,7 +791,9 @@ void crypto_main(int argc, char **argv)
                 APP_LOG_DEBUG("Encryption over\n");
             }
 
-            if (is_decryption_request() && g_crypto_func_set[i].decrypt != NULL)
+            if (0 == crypto_check_required_decryption_param() && 
+                is_decryption_request() && 
+                g_crypto_func_set[i].decrypt != NULL)
             {
                 APP_LOG_DEBUG("Decryption start\n");
                 if (g_crypto_func_set[i].decrypt(g_specified_filename))
