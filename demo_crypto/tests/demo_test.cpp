@@ -5,9 +5,9 @@ extern "C" {
 #include "crypto_custom.h"
 }
 
-TEST(crypto_custom, crypto_check_required_param)
+TEST(crypto_custom, crypto_check_required_encryption_param)
 {
-    EXPECT_EQ(-1, crypto_check_required_param());
+    EXPECT_EQ(-1, crypto_check_required_encryption_param());
 }
 
 int main(int argc, char **argv)
