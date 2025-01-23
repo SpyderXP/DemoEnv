@@ -304,12 +304,6 @@ int general_file_encrypt_process(const char *algo,
         return -1;
     }
 
-    /* TODO: 防止源文件长度导致mmap对齐问题 */
-    if (sb.st_size % 16 != 0)
-    {
-        extra_size = 16 - (sb.st_size % 16);
-    }
-
     /* 映射文件 */
     addr = mmap(NULL, sb.st_size + extra_size, PROT_READ, MAP_PRIVATE, fd, 0);
     if (MAP_FAILED == addr) 
