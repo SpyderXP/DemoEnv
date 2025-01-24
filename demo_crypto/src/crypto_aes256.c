@@ -158,10 +158,9 @@ int aes256_encrypt_specified_mmap_addr(const char *addr,
     uint8_t         iv[AES_IV_LEN]          = {0};
     char            path[FULL_FILENAME_LEN] = {0};
 
-    if (NULL == addr || NULL == key_fullpath ||  NULL == encrypt_path || NULL == filename)
+    if (NULL == addr ||  NULL == encrypt_path || NULL == filename)
     {
-        APP_LOG_ERROR("Parameter is NULL[addr: %p][key_fullpath: %p][encrypt_path: %p][filename: %p]\n", 
-            addr, key_fullpath, encrypt_path, filename);
+        APP_LOG_ERROR("Parameter is NULL[addr: %p][encrypt_path: %p][filename: %p]\n", addr, encrypt_path, filename);
         return -1;
     }
 
@@ -292,16 +291,15 @@ int aes256_decrypt_specified_mmap_addr(const char *addr,
     uint8_t         iv[AES_IV_LEN]          = {0};
     char            path[FULL_FILENAME_LEN] = {0};
 
-    if (NULL == addr || NULL == key_fullpath || NULL == decrypt_path || NULL == filename)
+    if (NULL == addr || NULL == decrypt_path || NULL == filename)
     {
-        APP_LOG_ERROR("Parameter is NULL[addr: %p][key_fullpath: %p][decrypt_path: %p][filename: %p]\n", 
-            addr, key_fullpath, decrypt_path, filename);
+        APP_LOG_ERROR("Parameter is NULL[addr: %p][decrypt_path: %p][filename: %p]\n", addr, decrypt_path, filename);
         return -1;
     }
 
     if (read_openssl_aes256_key_info(key, iv, key_fullpath) != 0)
     {
-        APP_LOG_ERROR("Failed to read openssl aes256 key info[file: %s]\n", key_fullpath);
+        APP_LOG_ERROR("Failed to read openssl aes256 key info\n");
         return -1;
     }
 

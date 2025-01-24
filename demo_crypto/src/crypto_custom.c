@@ -95,7 +95,7 @@ void help_intro(void)
         "\t-o\t--oridir\tOriginal file path[Required arg]\n"
         "\t-e\t--encryptdir\tEncrypted file path[Required arg]\n"
         "\t-d\t--decryptdir\tDecrypted file path[Required arg]\n"
-        "\t-k\t--key\tEncryption/Decryption key file[Required arg]\n"
+        "\t-k\t--key\t\tEncryption/Decryption key file[Required arg]\n"
         "\t-f\t--file\t\tFile to Encrypt/Decrypt[Required arg]\n"
         "\t-h\t--help\t\tHelp Manual[No arg]\n"
         "\nExample:\n"
@@ -274,7 +274,6 @@ int general_file_encrypt_process(const char *algo,
 {
     int         fd                          = -1;
     int         ret                         = 0;
-    int         extra_size                  = 0;
     char        *addr                       = NULL;
     struct stat sb                          = {0};
     char        path[FULL_FILENAME_LEN]     = {0};
@@ -305,7 +304,7 @@ int general_file_encrypt_process(const char *algo,
     }
 
     /* 映射文件 */
-    addr = mmap(NULL, sb.st_size + extra_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    addr = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     if (MAP_FAILED == addr) 
     {
         close(fd);
@@ -328,7 +327,7 @@ int general_file_encrypt_process(const char *algo,
     }
 
     /* 解除映射 */
-    if (-1 == munmap(addr, sb.st_size + extra_size)) 
+    if (-1 == munmap(addr, sb.st_size)) 
     {
         APP_LOG_ERROR("Error un-mmapping the file[%s]\n", path);
         return -1;

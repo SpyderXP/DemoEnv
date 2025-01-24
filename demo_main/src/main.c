@@ -7,6 +7,9 @@
   *  其他       : 无.
   *  修改日志   : 无.
 ******************************************************************************/
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
