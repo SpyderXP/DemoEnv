@@ -1,9 +1,9 @@
 /******************************************************************************
-  *  文件名     : main.c
+  *  文件名     : ffmpeg_tool.c
   *  负责人     : xupeng
   *  创建日期   : 20250118
   *  版本号     : v1.1 
-  *  文件描述   : 通用测试入口.
+  *  文件描述   : FFMPEG工具.
   *  其他       : 无.
   *  修改日志   : 无.
 ******************************************************************************/
@@ -18,7 +18,6 @@
 #include <pthread.h>
 #include "logger.h"
 #include "common_macro.h"
-#include "crypto_custom.h"
 
 /************************************************************************* 
 *  负责人    : xupeng
@@ -31,14 +30,12 @@
 *************************************************************************/
 int main(int argc, char **argv)
 {
-    // if (init_logger("./etc/logconf.json", "demo") != 0)
+    // if (init_logger("./etc/ffmpeg_tool_logconf.json", "ffmpeg_tool") != 0)
     if (init_logger(NULL, NULL) != 0) 
     {
         fprintf(stdout, "Init logger failed\n");
         return -1;
     }
-
-    crypto_main(argc, argv);
 
     // wait for thread.
     // while (1)

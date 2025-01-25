@@ -16,40 +16,46 @@ else
 	CXXFLAGS += -g
 endif
 
-SRCS	:= $(wildcard src/*.c)
-OBJS	:= $(patsubst src/%.c, obj/%.o, $(SRCS))
-DEPS	:= $(wildcard inc/*.h)
+TARGETS				:= crypto_tool ffmpeg_tool
 
-TARGET		:= crypto_tool
-
-# 添加需要搜索的头文件路径
 CFLAGS	+= -Iinc -I../common_inc
 
-# 添加需要搜索的库文件目录及链接选项
-LDFLAGS += -rdynamic -no-pie -L../thd_lib/x86 -L../demo_crypto/lib/x86 -L../demo_logger/lib/x86 -L../demo_common/lib/x86
+CRYPTO_TOOL_SRCS	:= src/crypto_tool.c
+CRYPTO_TOOL_OBJS 	:= $(CRYPTO_TOOL_SRCS:src/%.c=obj/%.o)
+CRYPTO_TOOL_LDFLAGS += -rdynamic -no-pie -L../thd_lib/x86 -L../demo_crypto/lib/x86 -L../demo_logger/lib/x86 -L../demo_common/lib/x86
+CRYPTO_TOOL			:= crypto_tool
+
+FFMPEG_TOOL_SRCS	:= src/ffmpeg_tool.c
+FFMPEG_TOOL_OBJS 	:= $(FFMPEG_TOOL_SRCS:src/%.c=obj/%.o)
+FFMPEG_TOOL_LDFLAGS += -rdynamic -no-pie -L../thd_lib/x86 -L../demo_logger/lib/x86 -L../demo_common/lib/x86
+FFMPEG_TOOL			:= ffmpeg_tool
 
 # 添加需要链接的库文件
 ifeq ($(LIB_TYPE),dynamic)
-	LDLIBS	+= -lcustom_crypto -llogger -lcommon -lcjson -lssl -lcrypto -lm -lpthread -lstdc++
+	CRYPTO_TOOL_LDLIBS	+= -lcustom_crypto -llogger -lcommon -lcjson -lssl -lcrypto -lm -lpthread -lstdc++
+	FFMPEG_TOOL_LDLIBS	+= -llogger -lcommon -lcjson -lm -lpthread -lstdc++
 else
-	LDLIBS	+= -Wl,-Bstatic -lcustom_crypto -llogger -lcommon -lcjson -Wl,-Bdynamic -lssl -lcrypto -lm -lpthread -lstdc++
+	CRYPTO_TOOL_LDLIBS	+= -Wl,-Bstatic -lcustom_crypto -llogger -lcommon -lcjson -Wl,-Bdynamic -lssl -lcrypto -lm -lpthread -lstdc++
+	FFMPEG_TOOL_LDLIBS	+= -Wl,-Bstatic -llogger -lcommon -lcjson -Wl,-Bdynamic -lm -lpthread -lstdc++
 endif
 
-.PHONY : all build clean
+.PHONY : all clean
 
 default : all
 
-all : build
+all : $(TARGETS)
 
-build : $(TARGET)
-
-obj/%.o : src/%.c $(DEPS)
+obj/%.o : src/%.c
 #	@echo "$(CC) $<"
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-$(TARGET) : $(OBJS)
+crypto_tool: $(CRYPTO_TOOL_OBJS)
 #	@echo "$(CC) $^"
-	$(CC) -o $@ $^ $(LDFLAGS) $(LDLIBS) 
+	$(CC) -o $@ $^ $(CRYPTO_TOOL_LDFLAGS) $(CRYPTO_TOOL_LDLIBS)
+
+ffmpeg_tool: $(FFMPEG_TOOL_OBJS)
+#	@echo "$(CC) $^"
+	$(CC) -o $@ $^ $(FFMPEG_TOOL_LDFLAGS) $(FFMPEG_TOOL_LDLIBS)
 
 clean :
-	@$(RM) $(OBJS) $(TARGET)
+	@$(RM) $(CRYPTO_TOOL_OBJS) $(FFMPEG_TOOL_OBJS) $(CRYPTO_TOOL) $(FFMPEG_TOOL)

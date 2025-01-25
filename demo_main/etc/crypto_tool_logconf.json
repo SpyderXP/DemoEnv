@@ -1,0 +1,10 @@
+{
+    "level": "DEBUG",
+    "switch": "1",
+    "path": "./log",
+    "name": "crypto_tool",
+    "errlog_name": "crypto_tool_err",
+    "debug_switch": "1",
+    "single_file_size": "1",
+    "directory_size": "6"
+}
