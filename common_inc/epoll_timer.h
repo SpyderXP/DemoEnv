@@ -10,27 +10,25 @@
 #ifndef __EPOLL_TIMER_H__
 #define __EPOLL_TIMER_H__
 
-#include <stdint.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct TRANS_DATA_S
+#define EPOLL_EVENT_SIZE 8
+
+typedef struct TIMER_CTX_S
 {
     int timerfd;
+    void *data;     /* alloc and free by caller */
+} TIMER_CTX_T;
 
-    /* data section */
-    int val;
-} TRANS_DATA_T;
+typedef int (*TIMER_HANDLER)(TIMER_CTX_T *ctx);
 
-typedef int (*DATA_HANDLER)(TRANS_DATA_T *data);
-
-typedef struct DATA_CONTEXT_S
+typedef struct EPOLL_TIMER_S
 {
-    TRANS_DATA_T data;
-    DATA_HANDLER handler;
-} DATA_CONTEXT_T;
+    TIMER_CTX_T ctx;
+    TIMER_HANDLER handler;
+} EPOLL_TIMER_T;
 
 /************************************************************************* 
 *  负责人    : xupeng
@@ -46,23 +44,54 @@ int create_epollfd(void);
 *  负责人    : xupeng
 *  创建日期  : 20250127
 *  函数功能  : 创建毫秒级EPOLL定时器.
-*  输入参数  : trans_data - 定时器回调参数.
+*  输入参数  : timer - 定时器回调参数.
 *             epollfd - EPOLL 文件描述符.
 *             interval - 定时器回调间隔(毫秒).
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int create_ms_epoll_timer(DATA_CONTEXT_T *trans_data, int epollfd, int interval);
+int create_ms_epoll_timer(EPOLL_TIMER_T *timer, int epollfd, int interval);
 
 /************************************************************************* 
 *  负责人    : xupeng
 *  创建日期  : 20250127
-*  函数功能  : 非阻塞EPOLL定时器维护循环.
+*  函数功能  : 销毁毫秒级EPOLL定时器.
+*  输入参数  : timer - 定时器回调参数.
+*             epollfd - EPOLL 文件描述符.
+*  输出参数  : 无.
+*  返回值    : 无.
+*************************************************************************/
+void destroy_ms_epoll_timer(EPOLL_TIMER_T *timer, int epollfd);
+
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20250127
+*  函数功能  : 非阻塞EPOLL定时器维护循环(默认开启循环).
 *  输入参数  : para - EPOLL 文件描述符.
 *  输出参数  : 无.
 *  返回值    : 无.
 *************************************************************************/
-void *nonblock_epoll_timer_maintain_loop(void *para);
+void *nonblock_epoll_timer_loop_run(void *para);
+
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20250127
+*  函数功能  : 开启非阻塞EPOLL定时器维护循环.
+*  输入参数  : 无.
+*  输出参数  : 无.
+*  返回值    : 无.
+*************************************************************************/
+void nonblock_epoll_timer_loop_start(void);
+
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20250127
+*  函数功能  : 终止非阻塞EPOLL定时器维护循环.
+*  输入参数  : 无.
+*  输出参数  : 无.
+*  返回值    : 无.
+*************************************************************************/
+void nonblock_epoll_timer_loop_stop(void);
 
 #ifdef __cplusplus
 }
