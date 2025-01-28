@@ -38,13 +38,11 @@ else
 	LDLIBS	+= -Wl,-Bstatic -lcjson -lcommon -Wl,-Bdynamic -lm -lpthread -lstdc++
 endif
 
-.PHONY : all build clean
+.PHONY : all clean
 
 default : all
 
-all : build
-
-build : $(STATIC_LIB) $(SHARED_LIB)
+all : $(STATIC_LIB) $(SHARED_LIB)
 
 obj/%.o : src/%.c $(DEPS)
 #	@echo "$(CC) $<"

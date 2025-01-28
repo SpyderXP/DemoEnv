@@ -42,7 +42,19 @@ do \
 *  输出参数  : 无.
 *  返回值    : 目的字符串.
 *************************************************************************/
-char *fast_strncat(char *dst, char *src, int size);
+inline char *fast_strncat(char *dst, char *src, int size)
+{
+    while (*dst)
+    {
+        dst++;
+    }
+
+    while (size--)
+    {
+        *dst++ = *src++;
+    }
+    return --dst;
+}
 
 #define OSTRNCAT(dst, src, size) fast_strncat(dst, src, size)
 

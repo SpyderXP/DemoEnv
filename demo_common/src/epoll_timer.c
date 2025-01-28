@@ -16,7 +16,6 @@
 #include <errno.h>
 #include <sys/epoll.h>
 #include <sys/timerfd.h>
-#include "logger.h"
 #include "epoll_timer.h"
 
 bool g_epoll_timer_loop_flag = true;
@@ -37,7 +36,6 @@ int create_epollfd(void)
     epollfd = epoll_create1(EPOLL_CLOEXEC);
     if (-1 == epollfd)
     {
-        APP_LOG_ERROR("Failed to create epoll fd");
         return -1;
     }
 
@@ -62,14 +60,12 @@ int create_ms_epoll_timer(EPOLL_TIMER_T *timer, int epollfd, int interval)
 
     if (NULL == timer)
     {
-        APP_LOG_ERROR("timer is NULL");
         return -1;
     }
 
     timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
     if (-1 == timerfd)
     {
-        APP_LOG_ERROR("Failed to create timerfd");
         return -1;
     }
 
@@ -79,7 +75,6 @@ int create_ms_epoll_timer(EPOLL_TIMER_T *timer, int epollfd, int interval)
     ts.it_interval.tv_nsec = (interval % 1000) * 1000000;
     if (timerfd_settime(timerfd, 0, &ts, NULL) != 0)
     {
-        APP_LOG_ERROR("Failed to timerfd settime");
         return -1;
     }
 
@@ -89,7 +84,6 @@ int create_ms_epoll_timer(EPOLL_TIMER_T *timer, int epollfd, int interval)
     ep_event.data.ptr = (void *)timer;
     if (epoll_ctl(epollfd, EPOLL_CTL_ADD, timerfd, &ep_event) != 0)
     {
-        APP_LOG_ERROR("Failed to epoll_ctl()");
         return -1;
     }
 
@@ -111,20 +105,17 @@ void destroy_ms_epoll_timer(EPOLL_TIMER_T *timer, int epollfd)
 
     if (NULL == timer || timer->ctx.timerfd <= 0)
     {
-        APP_LOG_ERROR("timer is invalid");
         return ;
     }
 
     // stop.
     if (timerfd_settime(timer->ctx.timerfd, 0, &ts, NULL) != 0)
     {
-        APP_LOG_ERROR("Failed to timerfd settime");
         return ;
     }
 
     if (epoll_ctl(epollfd, EPOLL_CTL_DEL, timer->ctx.timerfd, NULL) != 0)
     {
-        APP_LOG_ERROR("Failed to epoll_ctl()");
         return ;
     }
 
@@ -152,7 +143,6 @@ void *nonblock_epoll_timer_loop_run(void *para)
     epollfd = *(int *)para;
     if (epollfd < 0)
     {
-        APP_LOG_ERROR("epollfd[%d] is invalid", epollfd);
         return NULL;
     }
 
@@ -164,24 +154,21 @@ void *nonblock_epoll_timer_loop_run(void *para)
         count = epoll_wait(epollfd, ep_wait_events, EPOLL_EVENT_SIZE, 0);
         if (count > 0)
         {
-            // APP_LOG_DEBUG("Recv epoll event count: %d", count);
             for (int i = 0; i < count; i++)
             {
                 timer = (EPOLL_TIMER_T *)ep_wait_events[i].data.ptr;
                 if (NULL == timer)
                 {
-                    APP_LOG_ERROR("timer is NULL");
                     continue;
                 }
 
                 while (read(timer->ctx.timerfd, &exp, sizeof(exp)) != -1)
                 {
-                    // nothing to do.
+                    // 固定读取64位数据，将内核写入的数据读走.
                 }
 
                 if (NULL == timer->handler)
                 {
-                    APP_LOG_ERROR("handler is NULL");
                     continue;
                 }
 

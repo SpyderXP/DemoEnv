@@ -19,6 +19,7 @@
 #include "logger.h"
 #include "common_macro.h"
 #include "epoll_timer.h"
+#include "common_list.h"
 
 /* 用户自定义定时器参数数据域 */
 typedef struct EPOLL_TIMER_DATA_S
@@ -142,6 +143,96 @@ FAIL:
 
 /************************************************************************* 
 *  负责人    : xupeng
+*  创建日期  : 20250128
+*  函数功能  : 通用链表接口测试.
+*  输入参数  : 无.
+*  输出参数  : 无.
+*  返回值    : 0 - 成功  -1 - 失败.
+*************************************************************************/
+int common_list_interface_test(void)
+{
+    LIST_T list = {0};
+    LIST_NODE_T *innode = NULL;
+    LIST_NODE_T *outnode = NULL;
+    char key[32] = {0};
+
+    innode = calloc(1, sizeof(LIST_NODE_T));
+    innode->data = calloc(1, 32);
+    innode->datalen = 32;
+    snprintf((char *)innode->data, 32, "first node");
+    if (list_push_node(&list, innode) != 0)
+    {
+        APP_LOG_ERROR("Failed to push node");
+        return -1;
+    }
+
+    innode = calloc(1, sizeof(LIST_NODE_T));
+    innode->data = calloc(1, 32);
+    innode->datalen = 32;
+    snprintf((char *)innode->data, 32, "second node");
+    if (list_push_node(&list, innode) != 0)
+    {
+        APP_LOG_ERROR("Failed to push node");
+        return -1;
+    }
+
+    innode = calloc(1, sizeof(LIST_NODE_T));
+    innode->data = calloc(1, 32);
+    innode->datalen = 32;
+    snprintf((char *)innode->data, 32, "third node");
+    if (list_push_node(&list, innode) != 0)
+    {
+        APP_LOG_ERROR("Failed to push node");
+        return -1;
+    }
+
+    snprintf(key, sizeof(key), "first node");
+    list_pop_node(&list, (void *)key, 32, &outnode);
+    if (outnode != NULL)
+    {
+        APP_LOG_INFO("node1: %s[datalen: %d]", (char *)outnode->data, outnode->datalen);
+        if (outnode->data != NULL)
+        {
+            free(outnode->data);
+            outnode->data = NULL;
+        }
+        free(outnode);
+        outnode = NULL;
+    }
+
+    snprintf(key, sizeof(key), "second node");
+    list_pop_node(&list, (void *)key, 32, &outnode);
+    if (outnode != NULL)
+    {
+        APP_LOG_INFO("node2: %s[datalen: %d]", (char *)outnode->data, outnode->datalen);
+        if (outnode->data != NULL)
+        {
+            free(outnode->data);
+            outnode->data = NULL;
+        }
+        free(outnode);
+        outnode = NULL;
+    }
+
+    snprintf(key, sizeof(key), "fourth node");
+    list_pop_node(&list, (void *)key, 32, &outnode);
+    if (outnode != NULL)
+    {
+        APP_LOG_INFO("node3: %s[datalen: %d]", (char *)outnode->data, outnode->datalen);
+        if (outnode->data != NULL)
+        {
+            free(outnode->data);
+            outnode->data = NULL;
+        }
+        free(outnode);
+        outnode = NULL;
+    }
+
+    return 0;
+}
+
+/************************************************************************* 
+*  负责人    : xupeng
 *  创建日期  : 20250117
 *  函数功能  : 通用测试入口.
 *  输入参数  : argc - 命令行参数个数.
@@ -160,6 +251,11 @@ int main(int argc, char **argv)
     if (epoll_timer_run() != 0)
     {
         APP_LOG_ERROR("epoll timer went error");
+    }
+
+    if (common_list_interface_test() != 0)
+    {
+        APP_LOG_ERROR("list interface test failed");
     }
 
     // wait for thread.
