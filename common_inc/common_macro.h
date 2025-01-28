@@ -17,19 +17,20 @@
 extern "C" {
 #endif
 
-#define TIME_ELAPSED(code) \
-do \
-{ \
-    struct timeval begin = {0}; \
-    struct timeval end = {0}; \
-    long sec = 0; \
-    long usec = 0; \
-    gettimeofday(&begin, NULL); \
-    {code;} \
-    gettimeofday(&end, NULL);\
-    sec = end.tv_sec - begin.tv_sec; \
-    usec = end.tv_usec - begin.tv_usec; \
-    fprintf(stdout, "[%s(%d)]Elapsed Time: SecTime = %lds, UsecTime = %ldus\n", __FILE__, __LINE__, sec, usec); \
+#define TIME_ELAPSED(code)                                                      \
+do                                                                              \
+{                                                                               \
+    struct timeval begin = {0};                                                 \
+    struct timeval end = {0};                                                   \
+    long sec = 0;                                                               \
+    long usec = 0;                                                              \
+    gettimeofday(&begin, NULL);                                                 \
+    {code;}                                                                     \
+    gettimeofday(&end, NULL);                                                   \
+    sec = end.tv_sec - begin.tv_sec;                                            \
+    usec = end.tv_usec - begin.tv_usec;                                         \
+    fprintf(stdout, "[%s(%d)]Elapsed Time: SecTime = %lds, UsecTime = %ldus\n", \
+         __FILE__, __LINE__, sec, usec);                                        \
 } while (0);
 
 /************************************************************************* 

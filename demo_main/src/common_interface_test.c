@@ -60,7 +60,7 @@ int epoll_data_process(TIMER_CTX_T *ctx)
     }
 
     gettimeofday(&tv, NULL);
-    APP_LOG_ERROR("timer: %d | num: %d | sec: %ld | usec: %ld\n", 
+    APP_LOG_ERROR("timer: %d | num: %d | sec: %ld | usec: %ld", 
         ctx->timerfd, ptr->num, tv.tv_sec, tv.tv_usec);
     return 0;
 }

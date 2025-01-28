@@ -122,7 +122,7 @@ int crypto_parse_command_line(int argc, char **argv)
 
     if (NULL == argv || 1 == argc)
     {
-        APP_LOG_ERROR("Parameter is wrong[argc: %d][argv: %p]\n", argc, argv);
+        APP_LOG_ERROR("Parameter is wrong[argc: %d][argv: %p]", argc, argv);
         help_intro();
         return -1;
     }
@@ -189,7 +189,7 @@ int crypto_check_required_encryption_param(void)
     if (0 == strcmp(g_specified_filename, "") || 
         0 == strcmp(g_crypto_algo_name, ""))
     {
-        APP_LOG_ERROR("-a algo, -f filename are required to encrypt file\n");
+        APP_LOG_ERROR("-a algo, -f filename are required to encrypt file");
         help_intro();
         return -1;
     }
@@ -211,7 +211,7 @@ int crypto_check_required_decryption_param(void)
         0 == strcmp(g_crypto_key_fullpath, "") || 
         0 == strcmp(g_crypto_algo_name, ""))
     {
-        APP_LOG_ERROR("-a algo, -f filename and -k key are required to decrypt file\n");
+        APP_LOG_ERROR("-a algo, -f filename and -k key are required to decrypt file");
         help_intro();
         return -1;
     }
@@ -281,7 +281,7 @@ int general_file_encrypt_process(const char *algo,
 
     if (NULL == algo || NULL == key_fullpath || NULL == origin_path || NULL == encrypt_path || NULL == filename)
     {
-        APP_LOG_ERROR("Parameter is NULL[algo: %p][key_fullpath: %p][origin_path: %p][encrypt_path: %p][filename: %p]\n", 
+        APP_LOG_ERROR("Parameter is NULL[algo: %p][key_fullpath: %p][origin_path: %p][encrypt_path: %p][filename: %p]", 
             algo, key_fullpath, origin_path, encrypt_path, filename);
         return -1;
     }
@@ -291,14 +291,14 @@ int general_file_encrypt_process(const char *algo,
     fd = open(path, O_RDONLY, (mode_t)0400);
     if (-1 == fd) 
     {
-        APP_LOG_ERROR("Error opening file for writing[%s]\n", path);
+        APP_LOG_ERROR("Error opening file for writing[%s]", path);
         return -1;
     }
 
     /* 获取文件状态 */
     if (-1 == fstat(fd, &sb)) 
     {
-        APP_LOG_ERROR("Error getting the file size[%s]\n", path);
+        APP_LOG_ERROR("Error getting the file size[%s]", path);
         close(fd);
         return -1;
     }
@@ -307,8 +307,8 @@ int general_file_encrypt_process(const char *algo,
     addr = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     if (MAP_FAILED == addr) 
     {
+        APP_LOG_ERROR("Error on mmap[%s]", path);
         close(fd);
-        APP_LOG_ERROR("Error on mmap[%s]\n", path);
         return -1;
     }
 
@@ -329,7 +329,7 @@ int general_file_encrypt_process(const char *algo,
     /* 解除映射 */
     if (-1 == munmap(addr, sb.st_size)) 
     {
-        APP_LOG_ERROR("Error un-mmapping the file[%s]\n", path);
+        APP_LOG_ERROR("Error un-mmapping the file[%s]", path);
         return -1;
     }
 
@@ -371,7 +371,7 @@ int general_file_decrypt_process(const char *algo,
 
     if (NULL == algo || NULL == key_fullpath || NULL == encrypt_path || NULL == decrypt_path || NULL == filename)
     {
-        APP_LOG_ERROR("Parameter is NULL[algo: %p][key_fullpath: %p][encrypt_path: %p][decrypt_path: %p][filename: %p]\n", 
+        APP_LOG_ERROR("Parameter is NULL[algo: %p][key_fullpath: %p][encrypt_path: %p][decrypt_path: %p][filename: %p]", 
             algo, key_fullpath, encrypt_path, decrypt_path, filename);
         return -1;
     }
@@ -381,14 +381,14 @@ int general_file_decrypt_process(const char *algo,
     fd = open(path, O_RDONLY, (mode_t)0400);
     if (-1 == fd) 
     {
-        APP_LOG_ERROR("Error opening file for writing[%s]\n", path);
+        APP_LOG_ERROR("Error opening file for writing[%s]", path);
         return -1;
     }
 
     /* 获取文件状态 */
     if (-1 == fstat(fd, &sb)) 
     {
-        APP_LOG_ERROR("Error getting the file size[%s]\n", path);
+        APP_LOG_ERROR("Error getting the file size[%s]", path);
         close(fd);
         return -1;
     }
@@ -397,8 +397,8 @@ int general_file_decrypt_process(const char *algo,
     addr = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     if (MAP_FAILED == addr) 
     {
+        APP_LOG_ERROR("Error on mmap[%s]", path);
         close(fd);
-        APP_LOG_ERROR("Error on mmap[%s]\n", path);
         return -1;
     }
 
@@ -419,7 +419,7 @@ int general_file_decrypt_process(const char *algo,
     /* 解除映射 */
     if (-1 == munmap(addr, sb.st_size)) 
     {
-        APP_LOG_ERROR("Error un-mmapping the file[%s]\n", path);
+        APP_LOG_ERROR("Error un-mmapping the file[%s]", path);
         return -1;
     }
 
@@ -452,30 +452,30 @@ void crypto_main(int argc, char **argv)
 
     if (is_encryption_request() && 0 == crypto_check_required_encryption_param())
     {
-        APP_LOG_DEBUG("Encryption start\n");
+        APP_LOG_DEBUG("Encryption start");
         if (general_file_encrypt_process(g_crypto_algo_name, 
                                          g_crypto_key_fullpath, 
                                          g_origin_path, 
                                          g_encrypt_path, 
                                          g_specified_filename) != 0)
         {
-            APP_LOG_ERROR("Encryption failed\n");
+            APP_LOG_ERROR("Encryption failed");
         }
-        APP_LOG_DEBUG("Encryption over\n");
+        APP_LOG_DEBUG("Encryption over");
     }
 
     if (is_decryption_request() && 0 == crypto_check_required_decryption_param())
     {
-        APP_LOG_DEBUG("Decryption start\n");
+        APP_LOG_DEBUG("Decryption start");
         if (general_file_decrypt_process(g_crypto_algo_name, 
                                          g_crypto_key_fullpath, 
                                          g_encrypt_path, 
                                          g_decrypt_path, 
                                          g_specified_filename) != 0)
         {
-            APP_LOG_ERROR("Decryption failed\n");
+            APP_LOG_ERROR("Decryption failed");
         }
-        APP_LOG_DEBUG("Decryption over\n");
+        APP_LOG_DEBUG("Decryption over");
     }
 
     return ;
@@ -502,7 +502,7 @@ int crypto_encrypt_file(const char *filename,
 {
     if (NULL == filename || NULL == algo || NULL == key_file || NULL == origin_path || NULL == encrypt_path)
     {
-        APP_LOG_ERROR("Parameter is NULL[filename: %p][algo: %p][key_file: %p][origin_path: %p][encrypt_path: %p]\n", 
+        APP_LOG_ERROR("Parameter is NULL[filename: %p][algo: %p][key_file: %p][origin_path: %p][encrypt_path: %p]", 
                         filename, algo, key_file, origin_path, encrypt_path);
         return -1;
     }
@@ -520,16 +520,16 @@ int crypto_encrypt_file(const char *filename,
         return -1;
     }
 
-    APP_LOG_DEBUG("Encryption start\n");
+    APP_LOG_DEBUG("Encryption start");
     if (general_file_encrypt_process(g_crypto_algo_name, 
                                      g_crypto_key_fullpath,
                                      g_origin_path, 
                                      g_encrypt_path, 
                                      g_specified_filename) != 0)
     {
-        APP_LOG_ERROR("Encryption failed\n");
+        APP_LOG_ERROR("Encryption failed");
     }
-    APP_LOG_DEBUG("Encryption over\n");
+    APP_LOG_DEBUG("Encryption over");
 
     return 0;
 }
@@ -555,7 +555,7 @@ int crypto_decrypt_file(const char *filename,
 {
     if (NULL == filename || NULL == algo || NULL == key_file || NULL == encrypt_path || NULL == decrypt_path)
     {
-        APP_LOG_ERROR("Parameter is NULL[filename: %p][algo: %p][key_file: %p][encrypt_path: %p][decrypt_path: %p]\n", 
+        APP_LOG_ERROR("Parameter is NULL[filename: %p][algo: %p][key_file: %p][encrypt_path: %p][decrypt_path: %p]", 
                         filename, algo, key_file, encrypt_path, decrypt_path);
         return -1;
     }
@@ -573,16 +573,16 @@ int crypto_decrypt_file(const char *filename,
         return -1;
     }
 
-    APP_LOG_DEBUG("Decryption start\n");
+    APP_LOG_DEBUG("Decryption start");
     if (general_file_decrypt_process(g_crypto_algo_name, 
                                      g_crypto_key_fullpath, 
                                      g_encrypt_path, 
                                      g_decrypt_path, 
                                      g_specified_filename) != 0)
     {
-        APP_LOG_ERROR("Decryption failed\n");
+        APP_LOG_ERROR("Decryption failed");
     }
-    APP_LOG_DEBUG("Decryption over\n");
+    APP_LOG_DEBUG("Decryption over");
 
     return 0;
 }

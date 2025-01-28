@@ -33,7 +33,7 @@ int read_openssl_aes256_key_info(uint8_t *key, uint8_t *iv, const char *infile)
 
     if (NULL == key || NULL == iv || NULL == infile)
     {
-        APP_LOG_ERROR("Parameter is NULL[key: %p][iv: %p][infile: %p]\n", key, iv, infile);
+        APP_LOG_ERROR("Parameter is NULL[key: %p][iv: %p][infile: %p]", key, iv, infile);
         return -1;
     }
 
@@ -41,7 +41,7 @@ int read_openssl_aes256_key_info(uint8_t *key, uint8_t *iv, const char *infile)
     fp = fopen(path, "rb");
     if (NULL == fp)
     {
-        APP_LOG_ERROR("fopen failed[%s]\n", path);
+        APP_LOG_ERROR("fopen failed[%s]", path);
         return -1;
     }
 
@@ -79,7 +79,7 @@ int read_or_create_random_openssl_aes256_key(uint8_t *key,
 
     if (NULL == key || NULL == iv || NULL == key_fullpath || NULL == encrypt_path || NULL == filename)
     {
-        APP_LOG_ERROR("Parameter is NULL[key: %p][iv: %p][key_fullpath: %p][encrypt_path: %p][filename: %p]\n", 
+        APP_LOG_ERROR("Parameter is NULL[key: %p][iv: %p][key_fullpath: %p][encrypt_path: %p][filename: %p]", 
             key, iv, key_fullpath, encrypt_path, filename);
         return -1;
     }
@@ -89,13 +89,13 @@ int read_or_create_random_openssl_aes256_key(uint8_t *key,
         /* 生成随机密钥 */
         if (0 == RAND_bytes(key, AES_KEY_LEN))
         {
-            APP_LOG_ERROR("RAND_bytes failed\n");
+            APP_LOG_ERROR("RAND_bytes failed");
             return -1;
         }
 
         if (0 == RAND_bytes(iv, AES_IV_LEN))
         {
-            APP_LOG_ERROR("RAND_bytes failed\n");
+            APP_LOG_ERROR("RAND_bytes failed");
             return -1;
         }
 
@@ -103,7 +103,7 @@ int read_or_create_random_openssl_aes256_key(uint8_t *key,
         fp = fopen(path, "wb");
         if (NULL == fp)
         {
-            APP_LOG_ERROR("fopen failed[%s]\n", path);
+            APP_LOG_ERROR("fopen failed[%s]", path);
             return -1;
         }
 
@@ -120,7 +120,7 @@ int read_or_create_random_openssl_aes256_key(uint8_t *key,
     {
         if (read_openssl_aes256_key_info(key, iv, key_fullpath) != 0)
         {
-            APP_LOG_ERROR("Failed to read openssl aes256 key info[%s]\n", key_fullpath);
+            APP_LOG_ERROR("Failed to read openssl aes256 key info[%s]", key_fullpath);
             return -1;
         }
     }
@@ -160,14 +160,14 @@ int aes256_encrypt_specified_mmap_addr(const char *addr,
 
     if (NULL == addr ||  NULL == encrypt_path || NULL == filename)
     {
-        APP_LOG_ERROR("Parameter is NULL[addr: %p][encrypt_path: %p][filename: %p]\n", addr, encrypt_path, filename);
+        APP_LOG_ERROR("Parameter is NULL[addr: %p][encrypt_path: %p][filename: %p]", addr, encrypt_path, filename);
         return -1;
     }
 
     /* 生成随机密钥 */
     if (read_or_create_random_openssl_aes256_key(key, iv, key_fullpath, encrypt_path, filename) != 0)
     {
-        APP_LOG_ERROR("Failed to create random openssl aes256 key\n");
+        APP_LOG_ERROR("Failed to create random openssl aes256 key");
         return -1;
     }
 
@@ -177,14 +177,14 @@ int aes256_encrypt_specified_mmap_addr(const char *addr,
     /* 创建并初始化上下文 */
     if (NULL == (ctx = EVP_CIPHER_CTX_new())) 
     {
-        APP_LOG_ERROR("EVP_CIPHER_CTX_new failed\n");
+        APP_LOG_ERROR("EVP_CIPHER_CTX_new failed");
         goto CLEAN;
     }
 
     /* 设置为加密模式 */
     if (EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv) != 1) 
     {
-        APP_LOG_ERROR("EVP_EncryptInit_ex failed\n");
+        APP_LOG_ERROR("EVP_EncryptInit_ex failed");
         goto CLEAN;
     }
 
@@ -193,7 +193,7 @@ int aes256_encrypt_specified_mmap_addr(const char *addr,
     fp = fopen(path, "wb");
     if (NULL == fp)
     {
-        APP_LOG_ERROR("fopen failed[%s]\n", path);
+        APP_LOG_ERROR("fopen failed[%s]", path);
         goto CLEAN;
     }
 
@@ -202,7 +202,7 @@ int aes256_encrypt_specified_mmap_addr(const char *addr,
     plaintext = (uint8_t *)calloc(1, BUFFER_SIZE + BUFFER_SIZE + sup_len);
     if (NULL == plaintext)
     {
-        APP_LOG_ERROR("calloc failed\n");
+        APP_LOG_ERROR("calloc failed");
         goto CLEAN;
     }
 
@@ -212,7 +212,7 @@ int aes256_encrypt_specified_mmap_addr(const char *addr,
         memcpy(plaintext, addr + readlen, BUFFER_SIZE);
         if (EVP_EncryptUpdate(ctx, ciphertext, &outlen, plaintext, BUFFER_SIZE) != 1)
         {
-            APP_LOG_ERROR("EVP_EncryptUpdate failed\n");
+            APP_LOG_ERROR("EVP_EncryptUpdate failed");
             goto CLEAN;
         }
         fwrite(ciphertext, 1, outlen, fp);
@@ -222,7 +222,7 @@ int aes256_encrypt_specified_mmap_addr(const char *addr,
     memcpy(plaintext, addr + readlen, datalen - readlen);
     if (EVP_EncryptUpdate(ctx, ciphertext, &outlen, plaintext, datalen - readlen) != 1)
     {
-        APP_LOG_ERROR("EVP_EncryptUpdate failed\n");
+        APP_LOG_ERROR("EVP_EncryptUpdate failed");
         goto CLEAN;
     }
     fwrite(ciphertext, 1, outlen, fp);
@@ -230,7 +230,7 @@ int aes256_encrypt_specified_mmap_addr(const char *addr,
     /* 处理最后剩余的数据 */
     if (EVP_EncryptFinal_ex(ctx, ciphertext, &outlen) != 1)
     {
-        APP_LOG_ERROR("EVP_EncryptFinal_ex failed\n");
+        APP_LOG_ERROR("EVP_EncryptFinal_ex failed");
         goto CLEAN;
     }
     fwrite(ciphertext, 1, outlen, fp);
@@ -293,13 +293,13 @@ int aes256_decrypt_specified_mmap_addr(const char *addr,
 
     if (NULL == addr || NULL == decrypt_path || NULL == filename)
     {
-        APP_LOG_ERROR("Parameter is NULL[addr: %p][decrypt_path: %p][filename: %p]\n", addr, decrypt_path, filename);
+        APP_LOG_ERROR("Parameter is NULL[addr: %p][decrypt_path: %p][filename: %p]", addr, decrypt_path, filename);
         return -1;
     }
 
     if (read_openssl_aes256_key_info(key, iv, key_fullpath) != 0)
     {
-        APP_LOG_ERROR("Failed to read openssl aes256 key info\n");
+        APP_LOG_ERROR("Failed to read openssl aes256 key info");
         return -1;
     }
 
@@ -309,14 +309,14 @@ int aes256_decrypt_specified_mmap_addr(const char *addr,
     /* 创建并初始化上下文 */
     if (NULL ==(ctx = EVP_CIPHER_CTX_new()))
     {
-        APP_LOG_ERROR("EVP_CIPHER_CTX_new failed\n");
+        APP_LOG_ERROR("EVP_CIPHER_CTX_new failed");
         goto CLEAN;
     }
 
     /* 初始化解密操作 */
     if (EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv) != 1)
     {
-        APP_LOG_ERROR("EVP_DecryptInit_ex failed\n");
+        APP_LOG_ERROR("EVP_DecryptInit_ex failed");
         goto CLEAN;
     }
 
@@ -325,7 +325,7 @@ int aes256_decrypt_specified_mmap_addr(const char *addr,
     fp = fopen(path, "wb");
     if (NULL == fp)
     {
-        APP_LOG_ERROR("fopen failed[%s]\n", path);
+        APP_LOG_ERROR("fopen failed[%s]", path);
         goto CLEAN;
     }
 
@@ -334,7 +334,7 @@ int aes256_decrypt_specified_mmap_addr(const char *addr,
     plaintext = (uint8_t *)calloc(1, BUFFER_SIZE + sup_len + BUFFER_SIZE);
     if (NULL == plaintext)
     {
-        APP_LOG_ERROR("calloc failed\n");
+        APP_LOG_ERROR("calloc failed");
         goto CLEAN;
     }
 
@@ -345,7 +345,7 @@ int aes256_decrypt_specified_mmap_addr(const char *addr,
 
         if (EVP_DecryptUpdate(ctx, plaintext, &outlen, ciphertext, BUFFER_SIZE) != 1)
         {
-            APP_LOG_ERROR("EVP_DecryptUpdate failed\n");
+            APP_LOG_ERROR("EVP_DecryptUpdate failed");
             goto CLEAN;
         }
 
@@ -356,7 +356,7 @@ int aes256_decrypt_specified_mmap_addr(const char *addr,
     memcpy(ciphertext, addr + readlen, datalen - readlen);
     if (EVP_DecryptUpdate(ctx, plaintext, &outlen, ciphertext, datalen - readlen) != 1)
     {
-        APP_LOG_ERROR("EVP_DecryptUpdate failed\n");
+        APP_LOG_ERROR("EVP_DecryptUpdate failed");
         goto CLEAN;
     }
     fwrite(plaintext, 1, outlen, fp);
@@ -364,7 +364,7 @@ int aes256_decrypt_specified_mmap_addr(const char *addr,
     /* 完成解密操作 */
     if (EVP_DecryptFinal_ex(ctx, plaintext, &outlen) != 1)
     {
-        APP_LOG_ERROR("EVP_DecryptFinal_ex failed\n");
+        APP_LOG_ERROR("EVP_DecryptFinal_ex failed");
         goto CLEAN;
     }
     fwrite(plaintext, 1, outlen, fp);
