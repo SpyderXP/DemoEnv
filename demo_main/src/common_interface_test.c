@@ -117,6 +117,7 @@ int epoll_timer_run(void)
 
     return 0;
 
+    /* 资源回收 */
 FAIL:
     if (g_epoll_timer[0].ctx.timerfd > 0)
     {
