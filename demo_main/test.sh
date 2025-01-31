@@ -20,8 +20,8 @@ check_all_md5()
             fi
         done < all.md5
     else
-        cpumd5str="11111111111111111111111111111111"
         touch all.md5
+        cpumd5str=`md5sum a.txt`
         echo -e "CPU\t$cpumd5str" >> all.md5
     fi
 }

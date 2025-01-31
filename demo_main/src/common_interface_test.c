@@ -16,6 +16,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "logger.h"
 #include "common_macro.h"
 #include "epoll_timer.h"
@@ -229,6 +232,43 @@ int common_list_interface_test(void)
     }
 
     return 0;
+}
+
+void test_func(void)
+{
+    char cpu_md5[33] = {0};
+    char cpld_md5[33] = {0};
+    char wstring[64] = {0};
+    int fd = -1;
+    int offset = 0;
+    mode_t old_mask = 0;
+
+    snprintf(cpu_md5, sizeof(cpu_md5), "11111111111111111111111111111111");
+    snprintf(cpld_md5, sizeof(cpld_md5), "22222222222222222222222222222222");
+
+    old_mask = umask(0000);     /* 修改默认 umask，并保存旧的umask值 */
+    fd = open("./all.md5", O_RDWR | O_CREAT, (mode_t)0666);
+    umask(old_mask);            /* 还原umask值 */
+    if (fd < 0)
+    {
+        APP_LOG_ERROR("fd open failed");
+        return ;
+    }
+
+    /* 写CPU MD5 */
+    snprintf(wstring, sizeof(wstring), "CPU\t%s\n", cpu_md5);
+    write(fd, wstring, sizeof(wstring));
+    offset += sizeof(wstring);
+
+    /* 写CPLD MD5 */
+    lseek(fd, offset, SEEK_SET);
+    snprintf(wstring, sizeof(wstring), "CPLD\t%s\n", cpld_md5);
+    write(fd, wstring, sizeof(wstring));
+    offset += sizeof(wstring);
+
+    close(fd);
+    fd = -1;
+    return ;
 }
 
 /************************************************************************* 
