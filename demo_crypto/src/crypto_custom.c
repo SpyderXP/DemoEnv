@@ -333,12 +333,15 @@ int general_file_encrypt_process(const char *algo,
         return -1;
     }
 
-    /* 将临时文件重命名 */
-    if (0 == ret)
+    if (0 == ret)   /* 将临时文件重命名 */
     {
         snprintf(path, sizeof(path), "%s/%s.tmp", encrypt_path, filename);
         snprintf(new_file, sizeof(new_file), "%s/%s", encrypt_path, filename);
         rename(path, new_file);
+    }
+    else    /* 删除临时文件 */
+    {
+        remove(path);
     }
 
     return ret;
@@ -423,12 +426,15 @@ int general_file_decrypt_process(const char *algo,
         return -1;
     }
 
-    /* 将临时文件重命名 */
-    if (0 == ret)
+    if (0 == ret)   /* 将临时文件重命名 */
     {
         snprintf(path, sizeof(path), "%s/%s.tmp", decrypt_path, filename);
         snprintf(new_file, sizeof(new_file), "%s/%s", decrypt_path, filename);
         rename(path, new_file);
+    }
+    else    /* 删除临时文件 */
+    {
+        remove(path);
     }
 
     return ret;
