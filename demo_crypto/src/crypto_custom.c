@@ -333,9 +333,9 @@ int general_file_encrypt_process(const char *algo,
         return -1;
     }
 
+    snprintf(path, sizeof(path), "%s/%s"CRYPTO_TMP_FILE_SUFFIX, encrypt_path, filename);
     if (0 == ret)   /* 将临时文件重命名 */
     {
-        snprintf(path, sizeof(path), "%s/%s.tmp", encrypt_path, filename);
         snprintf(new_file, sizeof(new_file), "%s/%s", encrypt_path, filename);
         rename(path, new_file);
     }
@@ -426,9 +426,9 @@ int general_file_decrypt_process(const char *algo,
         return -1;
     }
 
+    snprintf(path, sizeof(path), "%s/%s"CRYPTO_TMP_FILE_SUFFIX, decrypt_path, filename);
     if (0 == ret)   /* 将临时文件重命名 */
     {
-        snprintf(path, sizeof(path), "%s/%s.tmp", decrypt_path, filename);
         snprintf(new_file, sizeof(new_file), "%s/%s", decrypt_path, filename);
         rename(path, new_file);
     }
@@ -453,6 +453,7 @@ void crypto_main(int argc, char **argv)
 {
     if (crypto_parse_command_line(argc, argv) != 0)
     {
+        APP_LOG_ERROR("Command parameter is invalid");
         return ;
     }
 
@@ -466,6 +467,7 @@ void crypto_main(int argc, char **argv)
                                          g_specified_filename) != 0)
         {
             APP_LOG_ERROR("Encryption failed");
+            return ;
         }
         APP_LOG_DEBUG("Encryption over");
     }
@@ -480,6 +482,7 @@ void crypto_main(int argc, char **argv)
                                          g_specified_filename) != 0)
         {
             APP_LOG_ERROR("Decryption failed");
+            return ;
         }
         APP_LOG_DEBUG("Decryption over");
     }
@@ -523,6 +526,7 @@ int crypto_encrypt_file(const char *filename,
     /* 必要参数检验 */
     if (!is_encryption_request() || crypto_check_required_encryption_param() != 0)
     {
+        APP_LOG_ERROR("Miss encryption parameters");
         return -1;
     }
 
@@ -534,6 +538,7 @@ int crypto_encrypt_file(const char *filename,
                                      g_specified_filename) != 0)
     {
         APP_LOG_ERROR("Encryption failed");
+        return -1;
     }
     APP_LOG_DEBUG("Encryption over");
 
@@ -576,6 +581,7 @@ int crypto_decrypt_file(const char *filename,
     /* 必要参数检验 */
     if (!is_decryption_request() || crypto_check_required_decryption_param() != 0)
     {
+        APP_LOG_ERROR("Miss decryption parameters");
         return -1;
     }
 
@@ -587,6 +593,7 @@ int crypto_decrypt_file(const char *filename,
                                      g_specified_filename) != 0)
     {
         APP_LOG_ERROR("Decryption failed");
+        return -1;
     }
     APP_LOG_DEBUG("Decryption over");
 

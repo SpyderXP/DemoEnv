@@ -16,6 +16,7 @@ extern "C" {
 
 #define AES_KEY_LEN 32  /* AES对称加密密钥长度（256位AES加密） */
 #define AES_IV_LEN  16  /* AES对称加密向量长度 */
+#define AES_KEYFILE_SUFFIX ".aes256.key"  /* AES密钥文件后缀 */
 
 /************************************************************************* 
 *  负责人    : xupeng

@@ -99,7 +99,7 @@ int read_or_create_random_openssl_aes256_key(uint8_t *key,
             return -1;
         }
 
-        snprintf(path, sizeof(path), "%s/%s.aes256.key", encrypt_path, filename);
+        snprintf(path, sizeof(path), "%s/%s"AES_KEYFILE_SUFFIX, encrypt_path, filename);
         fp = fopen(path, "wb");
         if (NULL == fp)
         {
@@ -189,7 +189,7 @@ int aes256_encrypt_specified_mmap_addr(const char *addr,
     }
 
     /* 打开输入输出文件 */
-    snprintf(path, sizeof(path), "%s/%s.tmp", encrypt_path, filename);
+    snprintf(path, sizeof(path), "%s/%s"CRYPTO_TMP_FILE_SUFFIX, encrypt_path, filename);
     fp = fopen(path, "wb");
     if (NULL == fp)
     {
@@ -321,7 +321,7 @@ int aes256_decrypt_specified_mmap_addr(const char *addr,
     }
 
     /* 打开输入输出文件 */
-    snprintf(path, sizeof(path), "%s/%s.tmp", decrypt_path, filename);
+    snprintf(path, sizeof(path), "%s/%s"CRYPTO_TMP_FILE_SUFFIX, decrypt_path, filename);
     fp = fopen(path, "wb");
     if (NULL == fp)
     {
