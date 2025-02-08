@@ -335,7 +335,7 @@ int general_file_encrypt_process(const char *algo,
     fd = open(path, O_RDONLY, (mode_t)0400);
     if (-1 == fd) 
     {
-        APP_LOG_ERROR("Error opening file for writing[%s]", path);
+        APP_LOG_ERROR("Error opening file for reading[%s]", path);
         return -1;
     }
 
@@ -428,7 +428,7 @@ int general_file_decrypt_process(const char *algo,
     fd = open(path, O_RDONLY, (mode_t)0400);
     if (-1 == fd) 
     {
-        APP_LOG_ERROR("Error opening file for writing[%s]", path);
+        APP_LOG_ERROR("Error opening file for reading[%s]", path);
         return -1;
     }
 
