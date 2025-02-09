@@ -163,7 +163,7 @@ int common_list_interface_test(void)
     innode->data = calloc(1, 32);
     innode->datalen = 32;
     snprintf((char *)innode->data, 32, "first node");
-    if (list_push_node(&list, innode) != 0)
+    if (list_push_node_to_head(&list, innode) != 0)
     {
         APP_LOG_ERROR("Failed to push node");
         return -1;
@@ -173,7 +173,7 @@ int common_list_interface_test(void)
     innode->data = calloc(1, 32);
     innode->datalen = 32;
     snprintf((char *)innode->data, 32, "second node");
-    if (list_push_node(&list, innode) != 0)
+    if (list_push_node_to_head(&list, innode) != 0)
     {
         APP_LOG_ERROR("Failed to push node");
         return -1;
@@ -183,14 +183,14 @@ int common_list_interface_test(void)
     innode->data = calloc(1, 32);
     innode->datalen = 32;
     snprintf((char *)innode->data, 32, "third node");
-    if (list_push_node(&list, innode) != 0)
+    if (list_push_node_to_head(&list, innode) != 0)
     {
         APP_LOG_ERROR("Failed to push node");
         return -1;
     }
 
     snprintf(key, sizeof(key), "first node");
-    list_pop_node(&list, (void *)key, 32, &outnode);
+    list_pop_node_by_elem(&list, (void *)key, 32, &outnode);
     if (outnode != NULL)
     {
         APP_LOG_INFO("node1: %s[datalen: %d]", (char *)outnode->data, outnode->datalen);
@@ -204,7 +204,7 @@ int common_list_interface_test(void)
     }
 
     snprintf(key, sizeof(key), "second node");
-    list_pop_node(&list, (void *)key, 32, &outnode);
+    list_pop_node_by_elem(&list, (void *)key, 32, &outnode);
     if (outnode != NULL)
     {
         APP_LOG_INFO("node2: %s[datalen: %d]", (char *)outnode->data, outnode->datalen);
@@ -218,7 +218,7 @@ int common_list_interface_test(void)
     }
 
     snprintf(key, sizeof(key), "fourth node");
-    list_pop_node(&list, (void *)key, 32, &outnode);
+    list_pop_node_by_elem(&list, (void *)key, 32, &outnode);
     if (outnode != NULL)
     {
         APP_LOG_INFO("node3: %s[datalen: %d]", (char *)outnode->data, outnode->datalen);
@@ -234,40 +234,111 @@ int common_list_interface_test(void)
     return 0;
 }
 
-void test_func(void)
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20250209
+*  函数功能  : 链表反转.
+*  输入参数  : list - 待反转链表.
+*  输出参数  : list - 反转结果.
+*  返回值    : 0 - 成功  -1 - 失败.
+*************************************************************************/
+int list_reverse(LIST_T *list)
 {
-    char cpu_md5[33] = {0};
-    char cpld_md5[33] = {0};
-    char wstring[64] = {0};
-    int fd = -1;
-    int offset = 0;
-    mode_t old_mask = 0;
+    LIST_NODE_T *next = NULL;
+    LIST_NODE_T *cur = NULL;
+    LIST_NODE_T *prev = NULL;
 
-    snprintf(cpu_md5, sizeof(cpu_md5), "11111111111111111111111111111111");
-    snprintf(cpld_md5, sizeof(cpld_md5), "22222222222222222222222222222222");
-
-    old_mask = umask(0000);     /* 修改默认 umask，并保存旧的umask值 */
-    fd = open("./all.md5", O_RDWR | O_CREAT, (mode_t)0666);
-    umask(old_mask);            /* 还原umask值 */
-    if (fd < 0)
+    if (NULL == list)
     {
-        APP_LOG_ERROR("fd open failed");
-        return ;
+        return -1;
     }
 
-    /* 写CPU MD5 */
-    snprintf(wstring, sizeof(wstring), "CPU\t%s\n", cpu_md5);
-    write(fd, wstring, sizeof(wstring));
-    offset += sizeof(wstring);
+    if (NULL == list->node || 0 == list->size)
+    {
+        return -1;
+    }
 
-    /* 写CPLD MD5 */
-    lseek(fd, offset, SEEK_SET);
-    snprintf(wstring, sizeof(wstring), "CPLD\t%s\n", cpld_md5);
-    write(fd, wstring, sizeof(wstring));
-    offset += sizeof(wstring);
+    cur = list->node;
+    next = cur->next;
 
-    close(fd);
-    fd = -1;
+    if (NULL == next)
+    {
+        return 0;
+    }
+    else 
+    {
+        cur->next = NULL;
+        while (next != NULL)
+        {
+            prev = cur;
+            cur = next;
+            next = cur->next;
+            cur->next = prev;
+        }
+        list->node = cur;
+    }
+
+    return 0;
+}
+
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20250209
+*  函数功能  : 链表反转测试.
+*  输入参数  : 无.
+*  输出参数  : 无.
+*  返回值    : 无.
+*************************************************************************/
+void list_reverse_test(void)
+{
+    LIST_T list = {0};
+    LIST_NODE_T *innode = NULL;
+    LIST_NODE_T *outnode = NULL;
+
+    /* 加入节点 */
+    innode = calloc(1, sizeof(LIST_NODE_T));
+    innode->data = calloc(1, 4);
+    innode->datalen = 4;
+    *(int *)innode->data = 1;
+    list_push_node_to_head(&list, innode);
+
+    innode = calloc(1, sizeof(LIST_NODE_T));
+    innode->data = calloc(1, 4);
+    innode->datalen = 4;
+    *(int *)innode->data = 2;
+    list_push_node_to_head(&list, innode);
+
+    innode = calloc(1, sizeof(LIST_NODE_T));
+    innode->data = calloc(1, 4);
+    innode->datalen = 4;
+    *(int *)innode->data = 3;
+    list_push_node_to_head(&list, innode);
+
+    /* 链表反转 */
+    if (list_reverse(&list) != 0)
+    {
+        APP_LOG_ERROR("list reverse failed");
+    }
+
+    /* 取出节点 */
+    list_pop_node_from_head(&list, &outnode);
+    APP_LOG_INFO("node1: %d", *(int *)outnode->data);
+    free(outnode->data);
+    free(outnode);
+    outnode = NULL;
+
+    list_pop_node_from_head(&list, &outnode);
+    APP_LOG_INFO("node2: %d", *(int *)outnode->data);
+    free(outnode->data);
+    free(outnode);
+    outnode = NULL;
+
+    list_pop_node_from_head(&list, &outnode);
+    APP_LOG_INFO("node3: %d", *(int *)outnode->data);
+    free(outnode->data);
+    free(outnode);
+    outnode = NULL;
+
     return ;
 }
 
@@ -297,6 +368,8 @@ int main(int argc, char **argv)
     {
         APP_LOG_ERROR("list interface test failed");
     }
+
+    list_reverse_test();
 
     // wait for thread.
     while (1)

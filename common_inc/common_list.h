@@ -32,12 +32,22 @@ typedef struct LIST_S
 /************************************************************************* 
 *  负责人    : xupeng
 *  创建日期  : 20250128
-*  函数功能  : 头插法入链.
+*  函数功能  : 头插入链.
 *  输入参数  : node - 待插入节点.
 *  输出参数  : list - 待插入链表.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int list_push_node(LIST_T *list, LIST_NODE_T *node);
+int list_push_node_to_head(LIST_T *list, LIST_NODE_T *node);
+
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20250128
+*  函数功能  : 取出头部节点.
+*  输入参数  : list - 待取链表.
+*  输出参数  : node - 取出的节点.
+*  返回值    : 0 - 成功  -1 - 失败.
+*************************************************************************/
+int list_pop_node_from_head(LIST_T *list, LIST_NODE_T **node);
 
 /************************************************************************* 
 *  负责人    : xupeng
@@ -49,7 +59,7 @@ int list_push_node(LIST_T *list, LIST_NODE_T *node);
 *  输出参数  : node - 取出的节点.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int list_pop_node(LIST_T *list, void *data, uint32_t datalen, LIST_NODE_T **node);
+int list_pop_node_by_elem(LIST_T *list, void *data, uint32_t datalen, LIST_NODE_T **node);
 
 #ifdef __cplusplus
 }
