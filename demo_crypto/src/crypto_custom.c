@@ -26,20 +26,19 @@
 #include "common_macro.h"
 
 #define HELP_INFO_STR_SIZE 2048
+#define CRYPTO_TMP_FILE_SUFFIX ".tmp" /* 加密/解密临时文件后缀 */
 
-typedef int (*KEY_GEN_FUNC)(const char *key_path, const char *filename);
+typedef int (*KEY_GEN_FUNC)(const char *key_file);
 
 typedef int (*ENCRYPT_ALGO_FUNC)(const char *addr, 
                                  int datalen, 
-                                 const char *key_path, 
-                                 const char *encrypt_path, 
-                                 const char *filename);
+                                 const char *key_file, 
+                                 const char *encrypt_file);
 
 typedef int (*DECRYPT_ALGO_FUNC)(const char *addr, 
                                  int datalen, 
-                                 const char *key_path, 
-                                 const char *decrypt_path, 
-                                 const char *filename);
+                                 const char *key_file, 
+                                 const char *decrypt_file);
 
 typedef struct CRYPTO_FUNC_SET_S
 {
@@ -52,7 +51,7 @@ typedef struct CRYPTO_FUNC_SET_S
 char g_origin_path[PATHNAME_LEN]                = {0};  /* 初始文件路径 */
 char g_encrypt_path[PATHNAME_LEN]               = {0};  /* 加密文件路径 */
 char g_decrypt_path[PATHNAME_LEN]               = {0};  /* 解密文件路径 */
-char g_crypto_key_path[FULL_FILENAME_LEN]       = {0};  /* 密钥文件路径 */
+char g_crypto_key_file[FULL_FILENAME_LEN]       = {0};  /* 密钥文件 */
 char g_specified_filename[FILENAME_LEN]         = {0};  /* 指定加密/解密的文件名称 */
 char g_crypto_algo_name[CRYPTO_ALGO_NAMELEN]    = {0};  /* 加密算法名称 */
 char g_help_info_str[HELP_INFO_STR_SIZE]        = {0};  /* 帮助信息字符串 */
@@ -75,7 +74,7 @@ struct option g_long_options[] =
     {"oridir",      required_argument,  NULL, 'o'},
     {"encryptdir",  required_argument,  NULL, 'e'},
     {"decryptdir",  required_argument,  NULL, 'd'},
-    {"keydir",      required_argument,  NULL, 'k'},
+    {"key",         required_argument,  NULL, 'k'},
     {"file",        required_argument,  NULL, 'f'},
     {"algo",        required_argument,  NULL, 'a'},
     {"help",        no_argument,        NULL, 'h'},
@@ -99,13 +98,13 @@ void help_intro(void)
         "\t-o\t--oridir\tOriginal file path[Required arg]\n"
         "\t-e\t--encryptdir\tEncrypted file path[Required arg]\n"
         "\t-d\t--decryptdir\tDecrypted file path[Required arg]\n"
-        "\t-k\t--keydir\t\tEncryption/Decryption key file path[Required arg]\n"
+        "\t-k\t--key\t\tEncryption/Decryption key file[Required arg]\n"
         "\t-f\t--file\t\tFile to Encrypt/Decrypt[Required arg]\n"
         "\t-h\t--help\t\tHelp Manual[No arg]\n"
         "\nExample:\n"
-        "\tKeygen: ./crypto_tool -a aes256 -k ./etc -f hscy.img\n"
-        "\tEncrypt: ./crypto_tool -a aes256 -o ./origin -e ./encrypt -k ./etc -f hscy.img\n"
-        "\tDecrypt: ./crypto_tool -a aes256 -e ./encrypt -d ./decrypt -k ./etc -f hscy.img\n"
+        "\tKeygen: ./crypto_tool -a aes256 -k ./etc/xxx.key\n"
+        "\tEncrypt: ./crypto_tool -a aes256 -o ./origin -e ./encrypt -k ./etc/xxx.key -f hscy.img\n"
+        "\tDecrypt: ./crypto_tool -a aes256 -e ./encrypt -d ./decrypt -k ./etc/xxx.key -f hscy.img"
         "\n****************************************************************************************\n"
     );
     APP_LOG_INFO("%s", g_help_info_str);
@@ -155,7 +154,7 @@ int crypto_parse_command_line(int argc, char **argv)
             break;
 
         case 'k':
-            snprintf(g_crypto_key_path, sizeof(g_crypto_key_path), "%s", optarg);
+            snprintf(g_crypto_key_file, sizeof(g_crypto_key_file), "%s", optarg);
             break;
 
         case 'f':
@@ -192,10 +191,10 @@ int crypto_parse_command_line(int argc, char **argv)
 int check_required_crypto_param(void)
 {
     if (0 == strcmp(g_specified_filename, "") || 
-        0 == strcmp(g_crypto_key_path, "") || 
+        0 == strcmp(g_crypto_key_file, "") || 
         0 == strcmp(g_crypto_algo_name, ""))
     {
-        APP_LOG_ERROR("-a algo, -f filename and -k keydir are required to decrypt file");
+        APP_LOG_ERROR("-a algo, -f filename and -k key are required to decrypt file");
         help_intro();
         return -1;
     }
@@ -215,7 +214,10 @@ bool is_keygen_request(void)
 {
     if (0 == strcmp(g_encrypt_path, "") && 
         0 == strcmp(g_decrypt_path, "") && 
-        0 == strcmp(g_origin_path, ""))
+        0 == strcmp(g_origin_path, "") && 
+        0 == strcmp(g_specified_filename, "") && 
+        strcmp(g_crypto_key_file, "") != 0 && 
+        strcmp(g_crypto_algo_name, "") != 0)
     {
         return true;
     }
@@ -268,18 +270,17 @@ bool is_decryption_request(void)
 *  创建日期  : 20250208
 *  函数功能  : 通用密钥生成处理.
 *  输入参数  : algo - 加密算法名称.
-*             key_path - 密钥文件路径.
-*             filename - 待加密/解密的文件名.
+*             key_file - 密钥文件.
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int general_keygen_process(const char *algo, const char *key_path, const char *filename)
+int general_keygen_process(const char *algo, const char *key_file)
 {
     int ret = 0;
 
-    if (NULL == algo || NULL == key_path || NULL == filename)
+    if (NULL == algo || NULL == key_file)
     {
-        APP_LOG_ERROR("Parameter is NULL[algo: %p][key_path: %p][filename: %p]", algo, key_path, filename);
+        APP_LOG_ERROR("Parameter is NULL[algo: %p][key_file: %p]", algo, key_file);
         return -1;
     }
 
@@ -289,7 +290,7 @@ int general_keygen_process(const char *algo, const char *key_path, const char *f
         {
             if (g_crypto_func_set[i].keygen != NULL)
             {
-                ret = g_crypto_func_set[i].keygen(key_path, filename);
+                ret = g_crypto_func_set[i].keygen(key_file);
             }
             break;
         }
@@ -303,7 +304,7 @@ int general_keygen_process(const char *algo, const char *key_path, const char *f
 *  创建日期  : 20250117
 *  函数功能  : 通用文件加密处理.
 *  输入参数  : algo - 加密算法名称.
-*             key_path - 密钥文件路径.
+*             key_file - 密钥文件.
 *             origin_path - 待加密文件路径.
 *             encrypt_path - 指定的加密文件生成路径.
 *             filename - 待加密的文件名.
@@ -311,7 +312,7 @@ int general_keygen_process(const char *algo, const char *key_path, const char *f
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
 int general_file_encrypt_process(const char *algo, 
-                                 const char *key_path, 
+                                 const char *key_file, 
                                  const char *origin_path, 
                                  const char *encrypt_path, 
                                  const char *filename)
@@ -323,10 +324,10 @@ int general_file_encrypt_process(const char *algo,
     char        path[FULL_FILENAME_LEN]     = {0};
     char        new_file[FULL_FILENAME_LEN] = {0};
 
-    if (NULL == algo || NULL == key_path || NULL == origin_path || NULL == encrypt_path || NULL == filename)
+    if (NULL == algo || NULL == key_file || NULL == origin_path || NULL == encrypt_path || NULL == filename)
     {
-        APP_LOG_ERROR("Parameter is NULL[algo: %p][key_path: %p][origin_path: %p][encrypt_path: %p][filename: %p]", 
-            algo, key_path, origin_path, encrypt_path, filename);
+        APP_LOG_ERROR("Parameter is NULL[algo: %p][key_file: %p][origin_path: %p][encrypt_path: %p][filename: %p]", 
+            algo, key_file, origin_path, encrypt_path, filename);
         return -1;
     }
 
@@ -364,7 +365,8 @@ int general_file_encrypt_process(const char *algo,
         {
             if (g_crypto_func_set[i].encrypt != NULL)
             {
-                ret = g_crypto_func_set[i].encrypt(addr, sb.st_size, key_path, encrypt_path, filename);
+                snprintf(path, sizeof(path), "%s/%s"CRYPTO_TMP_FILE_SUFFIX, encrypt_path, filename);
+                ret = g_crypto_func_set[i].encrypt(addr, sb.st_size, key_file, path);
             }
             break;
         }
@@ -396,7 +398,7 @@ int general_file_encrypt_process(const char *algo,
 *  创建日期  : 20250117
 *  函数功能  : 通用文件解密处理.
 *  输入参数  : algo - 解密算法名称.
-*             key_path - 密钥文件路径.
+*             key_file - 密钥文件.
 *             encrypt_path - 待解密文件路径.
 *             decrypt_path - 指定的解密文件生成路径.
 *             filename - 待解密的文件名.
@@ -404,7 +406,7 @@ int general_file_encrypt_process(const char *algo,
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
 int general_file_decrypt_process(const char *algo, 
-                                 const char *key_path, 
+                                 const char *key_file, 
                                  const char *encrypt_path, 
                                  const char *decrypt_path, 
                                  const char *filename)
@@ -416,10 +418,10 @@ int general_file_decrypt_process(const char *algo,
     char        path[FULL_FILENAME_LEN]     = {0};
     char        new_file[FULL_FILENAME_LEN] = {0};
 
-    if (NULL == algo || NULL == key_path || NULL == encrypt_path || NULL == decrypt_path || NULL == filename)
+    if (NULL == algo || NULL == key_file || NULL == encrypt_path || NULL == decrypt_path || NULL == filename)
     {
-        APP_LOG_ERROR("Parameter is NULL[algo: %p][key_path: %p][encrypt_path: %p][decrypt_path: %p][filename: %p]", 
-            algo, key_path, encrypt_path, decrypt_path, filename);
+        APP_LOG_ERROR("Parameter is NULL[algo: %p][key_file: %p][encrypt_path: %p][decrypt_path: %p][filename: %p]", 
+            algo, key_file, encrypt_path, decrypt_path, filename);
         return -1;
     }
 
@@ -457,7 +459,8 @@ int general_file_decrypt_process(const char *algo,
         {
             if (g_crypto_func_set[i].decrypt != NULL)
             {
-                ret = g_crypto_func_set[i].decrypt(addr, sb.st_size, key_path, decrypt_path, filename);
+                snprintf(path, sizeof(path), "%s/%s"CRYPTO_TMP_FILE_SUFFIX, decrypt_path, filename);
+                ret = g_crypto_func_set[i].decrypt(addr, sb.st_size, key_file, path);
             }
             break;
         }
@@ -497,7 +500,18 @@ void crypto_main(int argc, char **argv)
 {
     if (crypto_parse_command_line(argc, argv) != 0)
     {
-        APP_LOG_ERROR("Command parameter is invalid");
+        return ;
+    }
+
+    if (is_keygen_request()) /* 密钥生成 */
+    {
+        APP_LOG_DEBUG("Keygen start");
+        if (general_keygen_process(g_crypto_algo_name, g_crypto_key_file) != 0)
+        {
+            APP_LOG_ERROR("Keygen failed");
+            return ;
+        }
+        APP_LOG_DEBUG("Keygen over");
         return ;
     }
 
@@ -512,7 +526,7 @@ void crypto_main(int argc, char **argv)
     {
         APP_LOG_DEBUG("Encryption start");
         if (general_file_encrypt_process(g_crypto_algo_name, 
-                                         g_crypto_key_path, 
+                                         g_crypto_key_file, 
                                          g_origin_path, 
                                          g_encrypt_path, 
                                          g_specified_filename) != 0)
@@ -526,7 +540,7 @@ void crypto_main(int argc, char **argv)
     {
         APP_LOG_DEBUG("Decryption start");
         if (general_file_decrypt_process(g_crypto_algo_name, 
-                                         g_crypto_key_path, 
+                                         g_crypto_key_file, 
                                          g_encrypt_path, 
                                          g_decrypt_path, 
                                          g_specified_filename) != 0)
@@ -535,16 +549,6 @@ void crypto_main(int argc, char **argv)
             return ;
         }
         APP_LOG_DEBUG("Decryption over");
-    }
-    else if (is_keygen_request()) /* 密钥生成 */
-    {
-        APP_LOG_DEBUG("Keygen start");
-        if (general_keygen_process(g_crypto_algo_name, g_crypto_key_path, g_specified_filename) != 0)
-        {
-            APP_LOG_ERROR("Keygen failed");
-            return ;
-        }
-        APP_LOG_DEBUG("Keygen over");
     }
     else 
     {
@@ -560,7 +564,7 @@ void crypto_main(int argc, char **argv)
 *  函数功能  : 随机密钥文件生成接口.
 *  输入参数  : filename - 待加密文件名.
 *             algo - 加密算法名称字符串.
-*             key_path - 密钥目录.
+*             key_file - 密钥文件.
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *  其他     : 目前支持的加密算法(algo参数) aes256.
@@ -576,17 +580,17 @@ int crypto_keygen(const char *filename, const char *algo, const char *key_file)
     /* 参数传递 */
     snprintf(g_specified_filename, sizeof(g_specified_filename), "%s", filename);
     snprintf(g_crypto_algo_name, sizeof(g_crypto_algo_name), "%s", algo);
-    snprintf(g_crypto_key_path, sizeof(g_crypto_key_path), "%s", key_file);
+    snprintf(g_crypto_key_file, sizeof(g_crypto_key_file), "%s", key_file);
 
     /* 必要参数检验 */
-    if (!is_keygen_request() || check_required_crypto_param() != 0)
+    if (!is_keygen_request())
     {
         APP_LOG_ERROR("Miss required keygen parameters");
         return -1;
     }
 
     APP_LOG_DEBUG("Keygen start");
-    if (general_keygen_process(g_crypto_algo_name, g_crypto_key_path, g_specified_filename) != 0)
+    if (general_keygen_process(g_crypto_algo_name, g_crypto_key_file) != 0)
     {
         APP_LOG_ERROR("Keygen failed");
         return -1;
@@ -602,7 +606,7 @@ int crypto_keygen(const char *filename, const char *algo, const char *key_file)
 *  函数功能  : 文件加密接口.
 *  输入参数  : filename - 待加密文件名.
 *             algo - 加密算法名称字符串.
-*             key_path - 密钥文件路径.
+*             key_file - 密钥文件.
 *             origin_path - 待加密文件路径.
 *             encrypt_path - 指定的加密文件生成路径.
 *  输出参数  : 无.
@@ -625,7 +629,7 @@ int crypto_encrypt_file(const char *filename,
     /* 参数传递 */
     snprintf(g_specified_filename, sizeof(g_specified_filename), "%s", filename);
     snprintf(g_crypto_algo_name, sizeof(g_crypto_algo_name), "%s", algo);
-    snprintf(g_crypto_key_path, sizeof(g_crypto_key_path), "%s", key_file);
+    snprintf(g_crypto_key_file, sizeof(g_crypto_key_file), "%s", key_file);
     snprintf(g_origin_path, sizeof(g_origin_path), "%s", origin_path);
     snprintf(g_encrypt_path, sizeof(g_encrypt_path), "%s", encrypt_path);
 
@@ -638,7 +642,7 @@ int crypto_encrypt_file(const char *filename,
 
     APP_LOG_DEBUG("Encryption start");
     if (general_file_encrypt_process(g_crypto_algo_name, 
-                                     g_crypto_key_path,
+                                     g_crypto_key_file,
                                      g_origin_path, 
                                      g_encrypt_path, 
                                      g_specified_filename) != 0)
@@ -657,7 +661,7 @@ int crypto_encrypt_file(const char *filename,
 *  函数功能  : 文件解密接口.
 *  输入参数  : filename - 待解密文件名.
 *             algo - 解密算法名称字符串.
-*             key_file - 密钥存放目录.
+*             key_file - 密钥文件.
 *             encrypt_path - 待解密文件路径.
 *             decrypt_path - 指定的解密文件生成路径.
 *  输出参数  : 无.
@@ -680,7 +684,7 @@ int crypto_decrypt_file(const char *filename,
     /* 参数传递 */
     snprintf(g_specified_filename, sizeof(g_specified_filename), "%s", filename);
     snprintf(g_crypto_algo_name, sizeof(g_crypto_algo_name), "%s", algo);
-    snprintf(g_crypto_key_path, sizeof(g_crypto_key_path), "%s", key_file);
+    snprintf(g_crypto_key_file, sizeof(g_crypto_key_file), "%s", key_file);
     snprintf(g_encrypt_path, sizeof(g_encrypt_path), "%s", encrypt_path);
     snprintf(g_decrypt_path, sizeof(g_decrypt_path), "%s", decrypt_path);
 
@@ -693,7 +697,7 @@ int crypto_decrypt_file(const char *filename,
 
     APP_LOG_DEBUG("Decryption start");
     if (general_file_decrypt_process(g_crypto_algo_name, 
-                                     g_crypto_key_path, 
+                                     g_crypto_key_file, 
                                      g_encrypt_path, 
                                      g_decrypt_path, 
                                      g_specified_filename) != 0)

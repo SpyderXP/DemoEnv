@@ -20,7 +20,7 @@ extern "C" {
 *  函数功能  : 随机密钥文件生成接口.
 *  输入参数  : filename - 待加密文件名.
 *             algo - 加密算法名称字符串.
-*             key_path - 密钥目录.
+*             key_file - 密钥文件.
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *  其他     : 目前支持的加密算法(algo参数) aes256.
@@ -33,7 +33,7 @@ int crypto_keygen(const char *filename, const char *algo, const char *key_file);
 *  函数功能  : 文件加密接口.
 *  输入参数  : filename - 待加密文件名.
 *             algo - 加密算法名称字符串.
-*             key_path - 密钥文件路径.
+*             key_file - 密钥文件.
 *             origin_path - 待加密文件路径.
 *             encrypt_path - 指定的加密文件生成路径.
 *  输出参数  : 无.
@@ -52,7 +52,7 @@ int crypto_encrypt_file(const char *filename,
 *  函数功能  : 文件解密接口.
 *  输入参数  : filename - 待解密文件名.
 *             algo - 解密算法名称字符串.
-*             key_file - 密钥存放目录.
+*             key_file - 密钥文件.
 *             encrypt_path - 待解密文件路径.
 *             decrypt_path - 指定的解密文件生成路径.
 *  输出参数  : 无.

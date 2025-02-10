@@ -61,21 +61,19 @@ int read_openssl_aes256_key_info(uint8_t *key, uint8_t *iv, const char *infile)
 *  负责人    : xupeng
 *  创建日期	 : 20250208
 *  函数功能  : AES密钥生成.
-*  输入参数  : key_path - 指定加密的密钥文件路径.
-*             filename - 指定加密的文件名.
+*  输入参数  : key_file - 指定加密的密钥文件.
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int aes256_crypto_key_generator(const char *key_path, const char *filename)
+int aes256_crypto_key_generator(const char *key_file)
 {
     FILE        *fp                     = NULL;
     uint8_t     key[AES_KEY_LEN]        = {0};
     uint8_t     iv[AES_IV_LEN]          = {0};
-    char        path[FULL_FILENAME_LEN] = {0};
 
-    if (NULL == key_path || NULL == filename)
+    if (NULL == key_file)
     {
-        APP_LOG_ERROR("Parameter is NULL[key_path: %p][filename: %p]", key_path, filename);
+        APP_LOG_ERROR("Parameter is NULL[key_file: %p]", key_file);
         return -1;
     }
 
@@ -92,11 +90,10 @@ int aes256_crypto_key_generator(const char *key_path, const char *filename)
         return -1;
     }
 
-    snprintf(path, sizeof(path), "%s/%s"AES_KEYFILE_SUFFIX, key_path, filename);
-    fp = fopen(path, "wb");
+    fp = fopen(key_file, "wb");
     if (NULL == fp)
     {
-        APP_LOG_ERROR("fopen failed[%s]", path);
+        APP_LOG_ERROR("fopen failed[%s]", key_file);
         return -1;
     }
 
@@ -118,17 +115,16 @@ int aes256_crypto_key_generator(const char *key_path, const char *filename)
 *  函数功能  : AES加密 - 根据指定的MMAP地址，进行文件加密操作.
 *  输入参数  : addr - mmap对应的待加密文件地址.
 *             datalen - 待加密的文件长度.
-*             key_path - 指定加密的密钥文件路径.
-*             encrypt_path - 指定加密的文件路径.
+*             key_file - 指定加密的密钥文件.
+*             encrypt_file - 指定加密的文件.
 *             filename - 指定加密的文件名.
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
 int aes256_encrypt_specified_mmap_addr(const char *addr, 
                                        int datalen, 
-                                       const char *key_path, 
-                                       const char *encrypt_path, 
-                                       const char *filename)
+                                       const char *key_file, 
+                                       const char *encrypt_file)
 {
     int             ret                     = -1;
     int             sup_len                 = 0;
@@ -140,17 +136,15 @@ int aes256_encrypt_specified_mmap_addr(const char *addr,
     uint8_t         *ciphertext             = NULL;
     uint8_t         key[AES_KEY_LEN]        = {0};
     uint8_t         iv[AES_IV_LEN]          = {0};
-    char            path[FULL_FILENAME_LEN] = {0};
 
-    if (NULL == addr ||  NULL == encrypt_path || NULL == filename)
+    if (NULL == addr ||  NULL == encrypt_file)
     {
-        APP_LOG_ERROR("Parameter is NULL[addr: %p][encrypt_path: %p][filename: %p]", addr, encrypt_path, filename);
+        APP_LOG_ERROR("Parameter is NULL[addr: %p][encrypt_file: %p]", addr, encrypt_file);
         return -1;
     }
 
     /* 读取密钥 */
-    snprintf(path, sizeof(path), "%s/%s"AES_KEYFILE_SUFFIX, key_path, filename);
-    if (read_openssl_aes256_key_info(key, iv, path) != 0)
+    if (read_openssl_aes256_key_info(key, iv, key_file) != 0)
     {
         APP_LOG_ERROR("Failed to read openssl aes256 key info");
         return -1;
@@ -174,11 +168,10 @@ int aes256_encrypt_specified_mmap_addr(const char *addr,
     }
 
     /* 打开输入输出文件 */
-    snprintf(path, sizeof(path), "%s/%s"CRYPTO_TMP_FILE_SUFFIX, encrypt_path, filename);
-    fp = fopen(path, "wb");
+    fp = fopen(encrypt_file, "wb");
     if (NULL == fp)
     {
-        APP_LOG_ERROR("fopen failed[%s]", path);
+        APP_LOG_ERROR("fopen failed[%s]", encrypt_file);
         goto CLEAN;
     }
 
@@ -252,17 +245,15 @@ CLEAN:
 *  函数功能  : AES解密 - 根据指定的MMAP地址，进行文件解密操作.
 *  输入参数  : addr - mmap对应的待解密文件地址.
 *             datalen - 待解密的文件长度.
-*             key_path - 指定解密的密钥文件路径.
-*             decrypt_path - 指定解密的文件路径.
-*             filename - 指定解密的文件名.
+*             key_file - 指定解密的密钥文件.
+*             decrypt_file - 指定解密的文件.
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
 int aes256_decrypt_specified_mmap_addr(const char *addr, 
                                        int datalen, 
-                                       const char *key_path, 
-                                       const char *decrypt_path, 
-                                       const char *filename)
+                                       const char *key_file, 
+                                       const char *decrypt_file)
 {
     int             ret                     = -1;
     int             outlen                  = 0;
@@ -274,17 +265,15 @@ int aes256_decrypt_specified_mmap_addr(const char *addr,
     uint8_t         *ciphertext             = NULL;
     uint8_t         key[AES_KEY_LEN]        = {0};
     uint8_t         iv[AES_IV_LEN]          = {0};
-    char            path[FULL_FILENAME_LEN] = {0};
 
-    if (NULL == addr || NULL == decrypt_path || NULL == filename)
+    if (NULL == addr || NULL == decrypt_file)
     {
-        APP_LOG_ERROR("Parameter is NULL[addr: %p][decrypt_path: %p][filename: %p]", addr, decrypt_path, filename);
+        APP_LOG_ERROR("Parameter is NULL[addr: %p][decrypt_file: %p]", addr, decrypt_file);
         return -1;
     }
 
     /* 读取密钥 */
-    snprintf(path, sizeof(path), "%s/%s"AES_KEYFILE_SUFFIX, key_path, filename);
-    if (read_openssl_aes256_key_info(key, iv, path) != 0)
+    if (read_openssl_aes256_key_info(key, iv, key_file) != 0)
     {
         APP_LOG_ERROR("Failed to read openssl aes256 key info");
         return -1;
@@ -294,7 +283,7 @@ int aes256_decrypt_specified_mmap_addr(const char *addr,
     APP_MODULE_BYTE_LOG_DEBUG("iv", iv, AES_IV_LEN);
 
     /* 创建并初始化上下文 */
-    if (NULL ==(ctx = EVP_CIPHER_CTX_new()))
+    if (NULL == (ctx = EVP_CIPHER_CTX_new()))
     {
         APP_LOG_ERROR("EVP_CIPHER_CTX_new failed");
         goto CLEAN;
@@ -308,11 +297,10 @@ int aes256_decrypt_specified_mmap_addr(const char *addr,
     }
 
     /* 打开输入输出文件 */
-    snprintf(path, sizeof(path), "%s/%s"CRYPTO_TMP_FILE_SUFFIX, decrypt_path, filename);
-    fp = fopen(path, "wb");
+    fp = fopen(decrypt_file, "wb");
     if (NULL == fp)
     {
-        APP_LOG_ERROR("fopen failed[%s]", path);
+        APP_LOG_ERROR("fopen failed[%s]", decrypt_file);
         goto CLEAN;
     }
 
