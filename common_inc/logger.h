@@ -134,15 +134,18 @@ enum OUT_MODE
 日志文件名称(name)  禁止在name字符串内包含字符'.'
 ERROR级别日志文件名称(errlog_name)  禁止在errlog_name字符串内包含字符'.'
 日志刷新功能(debug_switch) 0-待缓冲区满，刷新到日志文件 1-立即刷新到日志文件
+单个文件大小限制(single_file_size_mb) 单位为MB
+日志目录大小限制(directory_size_mb) 单位为MB，指定日志目录下所有日志文件超过该大小，则进行打包.
 
 {
     "level": "DEBUG",
-    "log_maxlen": "2048",
     "switch": "1",
     "path": "/data/app/DEMO/logFile",
     "name": "demo",
     "errlog_name": "demo_err",
-    "debug_switch": "1"
+    "debug_switch": "1",
+    "single_file_size_mb": "1",
+    "directory_size_mb": "6"
 }
 
 */
@@ -226,35 +229,6 @@ void write_file_log(const char *logname, const char *file, const char *function,
 *************************************************************************/
 void write_byte_log(const char *file, const char *function, const char *module, uint16_t line, uint8_t out_mode, 
                         uint8_t level, const uint8_t *byte, uint32_t byte_len);
-
-/************************************************************************* 
-*  负责人    : xupeng
-*  创建日期  : 20220429
-*  函数功能  : 通过解析cJSON对象，实时地修改日志模块配置项.
-*  输入参数  : obj - payload cJSON对象.
-*  输出参数  : 无.
-*  返回值    : 无.
-*  其它      : 暂时仅支持level/debug_switch选项的设置.
-*************************************************************************/
-void modify_logger_realtime_config_by_cjson_obj(const cJSON *obj);
-
-/************************************************************************* 
-*  负责人    : xupeng
-*  创建日期  : 20210425
-*  函数功能  : 设定日志等级.
-*  输入参数  : log_level - 指定的日志等级(枚举).
-*                           LOG_EMERG	0.
-*                           LOG_ALERT	1.
-*                           LOG_CRIT	2.
-*                           LOG_ERR		3.
-*                           LOG_WARNING	4.
-*                           LOG_NOTICE	5.
-*                           LOG_INFO	6.
-*                           LOG_DEBUG	7.
-*  输出参数  : 无.
-*  返回值    : 无.
-*************************************************************************/
-void set_log_level(int log_level);
 
 #ifdef __cplusplus
 }

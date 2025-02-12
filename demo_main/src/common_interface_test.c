@@ -353,7 +353,9 @@ void list_reverse_test(void)
 *************************************************************************/
 int main(int argc, char **argv)
 {
-    if (init_logger(NULL, NULL) != 0) 
+    char *log_conf_file = "./etc/test_code_logconf.json";
+
+    if (init_logger(log_conf_file, NULL) != 0) 
     {
         fprintf(stdout, "Init logger failed\n");
         return -1;

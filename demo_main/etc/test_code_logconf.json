@@ -1,9 +1,9 @@
 {
-    "level": "DEBUG",
+    "level": "ERROR",
     "switch": "1",
     "path": "./log",
-    "name": "ffmpeg_tool",
-    "errlog_name": "ffmpeg_tool_err",
+    "name": "test_code",
+    "errlog_name": "test_code_err",
     "debug_switch": "1",
     "single_file_size_mb": "1",
     "directory_size_mb": "6"

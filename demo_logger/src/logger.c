@@ -72,8 +72,8 @@ typedef struct LOG_CONF_ITEM_S
     uint8_t log_switch;
     uint8_t debug_switch;
     uint16_t log_maxlen;
-    uint32_t single_file_size;      /* 单位为MB */
-    uint32_t directory_size;        /* 单位为MB */
+    uint32_t single_file_size_mb;
+    uint32_t directory_size_mb;
 } LOG_CONF_ITEM_T;
 
 typedef struct LOG_DATA_S
@@ -157,9 +157,12 @@ static char *s_byte_log_buff = NULL;                /* BYTE LOG BUFFER */
 static char *s_suffix_log_buff = NULL;              /* LOG SUFFIX BUFFER */
 static char *s_whole_log_buff = NULL;               /* LOG PREFIX + SUFFIX BUFFER */
 
+static char *s_log_io_buf1 = NULL;                  /* LOG IO BUFFER BLOCK 1 */
+static char *s_log_io_buf2 = NULL;                  /* LOG IO BUFFER BLOCK 2 */
+static char *s_read_bufptr = NULL;                  /* READ BUFFER POINTER */
+static char *s_write_bufptr = NULL;                 /* WRITE BUFFER POINTER */
+
 static char s_system_cmdstr[CMD_SIZE] = {0};        /* 系统命令行字符串 */
-static uint32_t s_log_num_statis = 0;               /* LOG NUMBER STATISTICS */
-static uint64_t s_log_size_statis = 0;              /* LOG SIZE STATISTICS */
 static MAIN_LOOP_FLAG_T s_loop_flag;                /* 控制主流程循环 */
 
 int wrt_all_log(const char *log_buff, uint8_t out_mode, uint8_t level, const char *logname);
@@ -696,27 +699,6 @@ void set_log_level_str(char *log_level)
 
 /************************************************************************* 
 *  负责人    : xupeng
-*  创建日期  : 20210425
-*  函数功能  : 设定日志刷新方式.
-*  输入参数  : debug_switch - 设定的日志刷新方式.
-*  输出参数  : 无.
-*  返回值    : 无.
-*************************************************************************/
-void set_log_flush_mode(int debug_switch)
-{
-    if (debug_switch != 0 && debug_switch != 1)
-    {
-        /* 默认不立即刷新缓冲 */
-        s_log_conf_item.debug_switch = 0;
-        return ;
-    }
-
-    s_log_conf_item.debug_switch = debug_switch;
-    return ;
-}
-
-/************************************************************************* 
-*  负责人    : xupeng
 *  创建日期  : 20201203
 *  函数功能  : 刷新日志.
 *  输入参数  : logger - 日志文件指针.
@@ -729,9 +711,6 @@ int log_flush(FILE *logger, uint32_t len)
 {
     CHECK_NULL_1PARAM_WITH_RET(logger, -1);
     CHECK_CONDITION_WITH_RET(EOF == fflush(logger), -1);
-
-    s_log_num_statis++;
-    s_log_size_statis += len;
     return 0;
 }
 
@@ -947,11 +926,11 @@ int detect_log_size(const char *logname)
 
     closedir(dp);
 
-    if (directory_size >= s_log_conf_item.directory_size * MBYTES_SIZE)
+    if (directory_size >= s_log_conf_item.directory_size_mb * MBYTES_SIZE)
     {
         log_pack();     // 目录下所有日志打包.
     }
-    else if (filesize > s_log_conf_item.single_file_size * MBYTES_SIZE)
+    else if (filesize > s_log_conf_item.single_file_size_mb * MBYTES_SIZE)
     {
         log_backup(log_backup_num, logname);   // 当前日志归档.
     }
@@ -1172,16 +1151,16 @@ int assign_conf_item(cJSON *object, LOG_CONF_ITEM_T *log_conf_item)
         snprintf(log_conf_item->log_name, sizeof(log_conf_item->log_name), "%s", item->valuestring);
     }
 
-    item = cJSON_GetObjectItemCaseSensitive(object, "single_file_size");
+    item = cJSON_GetObjectItemCaseSensitive(object, "single_file_size_mb");
     if (item != NULL)
     {
-        log_conf_item->single_file_size = atoi(item->valuestring);
+        log_conf_item->single_file_size_mb = atoi(item->valuestring);
     }
 
-    item = cJSON_GetObjectItemCaseSensitive(object, "directory_size");
+    item = cJSON_GetObjectItemCaseSensitive(object, "directory_size_mb");
     if (item != NULL)
     {
-        log_conf_item->directory_size = atoi(item->valuestring);
+        log_conf_item->directory_size_mb = atoi(item->valuestring);
     }
 
     return 0;
@@ -1284,15 +1263,15 @@ int get_log_config(char *config_file)
     free(file_content);
     file_content = NULL;
 
-    fprintf(stdout, "level:  %s\n", s_loglevel_str[s_def_level]);
-    fprintf(stdout, "log_maxlen:  %u Bytes\n", s_log_conf_item.log_maxlen);
-    fprintf(stdout, "switch:  %u\n", s_log_conf_item.log_switch);
-    fprintf(stdout, "log path:  %s\n", s_log_conf_item.log_file_path);
-    fprintf(stdout, "log name:  %s\n", s_log_conf_item.log_name);
-    fprintf(stdout, "error log name:  %s\n", s_log_conf_item.errlog_name);
-    fprintf(stdout, "debug switch:  %u\n", s_log_conf_item.debug_switch);
-    fprintf(stdout, "single file size:  %u MB\n", s_log_conf_item.single_file_size);
-    fprintf(stdout, "directory size:  %u MB\n", s_log_conf_item.directory_size);
+    // fprintf(stdout, "level:  %s\n", s_loglevel_str[s_def_level]);
+    // fprintf(stdout, "log_maxlen:  %u Bytes\n", s_log_conf_item.log_maxlen);
+    // fprintf(stdout, "switch:  %u\n", s_log_conf_item.log_switch);
+    // fprintf(stdout, "log path:  %s\n", s_log_conf_item.log_file_path);
+    // fprintf(stdout, "log name:  %s\n", s_log_conf_item.log_name);
+    // fprintf(stdout, "error log name:  %s\n", s_log_conf_item.errlog_name);
+    // fprintf(stdout, "debug switch:  %u\n", s_log_conf_item.debug_switch);
+    // fprintf(stdout, "single file size:  %u MB\n", s_log_conf_item.single_file_size_mb);
+    // fprintf(stdout, "directory size:  %u MB\n", s_log_conf_item.directory_size_mb);
 
     return 0;
 }
@@ -1738,8 +1717,6 @@ void signal_bind(void)
 *************************************************************************/
 void *async_log_process_thread(void *arg)
 {
-    APP_LOG(ONLY_SCREEN, LOG_INFO, "===== ASYNC LOG THREAD Start ===== \n");
-
     s_async_tmp_node.buf = (char *)calloc(s_log_conf_item.log_maxlen, sizeof(char));
     if (NULL == s_async_tmp_node.buf)
     {
@@ -1794,29 +1771,12 @@ void *async_log_process_thread(void *arg)
 *************************************************************************/
 void *log_statis_process_thread(void *arg)
 {
-    clockid_t cid = 0;
-    struct timespec tp;
-
-    memset(&tp, 0, sizeof(tp));
-    APP_LOG(ONLY_SCREEN, LOG_INFO, "===== LOG STATIS THREAD Start ===== \n");
+    char *log_conf_path = (char *)arg;
 
     while (get_loop_flag())
     {
-        do 
-        {
-            clock_gettime(cid, &tp);
-        } while (get_loop_flag() && sleep(1) == 0 && (tp.tv_sec + 8 * 3600) % 86400 != 0);
-
-        if (!get_loop_flag())
-        {
-            break;
-        }
-
-        APP_LOG(FILE_AND_SCREEN, LOG_INFO, 
-"\n ===== 24HOUR Flash Statistics =====\n\
-Record flash times:  %u\n\
-Record flash total size:  %u\n", 
-            s_log_num_statis, s_log_size_statis);
+        (void)get_log_config(log_conf_path);
+        sleep(1);
     }
 
     return NULL;
@@ -1848,12 +1808,12 @@ int init_logger(char *log_conf_path, char *app_name)
 
     memset(&s_log_conf_item, 0, sizeof(s_log_conf_item));
     s_process_id = getpid();
-    s_def_level                     = LOG_DEBUG;
-    s_log_conf_item.log_switch      = LOG_SWITCH;
-    s_log_conf_item.debug_switch    = 1;
-    s_log_conf_item.log_maxlen      = SUFFIX_BUFSIZE;
-    s_log_conf_item.single_file_size = LOGFILE_SIZE;
-    s_log_conf_item.directory_size = 4 * LOGFILE_SIZE;
+    s_def_level                         = LOG_DEBUG;
+    s_log_conf_item.log_switch          = LOG_SWITCH;
+    s_log_conf_item.debug_switch        = 1;
+    s_log_conf_item.log_maxlen          = SUFFIX_BUFSIZE;
+    s_log_conf_item.single_file_size_mb = LOGFILE_SIZE;
+    s_log_conf_item.directory_size_mb   = 4 * LOGFILE_SIZE;
     snprintf(s_log_conf_item.log_file_path, FILEPATH_SIZE, "%s", "/data/log");
 
     if (app_name != NULL)
@@ -1874,8 +1834,8 @@ int init_logger(char *log_conf_path, char *app_name)
         fprintf(stdout, "log name:  %s\n", s_log_conf_item.log_name);
         fprintf(stdout, "error log name:  %s\n", s_log_conf_item.errlog_name);
         fprintf(stdout, "debug switch:  %d\n", s_log_conf_item.debug_switch);
-        fprintf(stdout, "single file size:  %d\n", s_log_conf_item.single_file_size);
-        fprintf(stdout, "directory size:  %d\n", s_log_conf_item.directory_size);
+        fprintf(stdout, "single file size:  %d MB\n", s_log_conf_item.single_file_size_mb);
+        fprintf(stdout, "directory size:  %d MB\n", s_log_conf_item.directory_size_mb);
     }
 
     if (0 == ret || app_name != NULL)
@@ -1936,7 +1896,7 @@ int init_logger(char *log_conf_path, char *app_name)
         goto FAIL;
     }
 
-    if (pthread_create(&s_statis_pt, NULL, log_statis_process_thread, NULL) != 0)
+    if (pthread_create(&s_statis_pt, NULL, log_statis_process_thread, (void *)log_conf_path) != 0)
     {
         fprintf(stdout, "Create Statistics log thread Failed\n");
         goto FAIL;
@@ -2286,36 +2246,5 @@ void destroy_logger(void)
     destroy_loop_flag();
     clean_logger_buffer();
     pthread_spin_destroy(&s_input_lock);
-    return ;
-}
-
-/************************************************************************* 
-*  负责人    : xupeng
-*  创建日期  : 20220429
-*  函数功能  : 通过解析cJSON对象，实时地修改日志模块配置项.
-*  输入参数  : obj - payload cJSON对象.
-*  输出参数  : 无.
-*  返回值    : 无.
-*  其它      : 暂时仅支持level/debug_switch选项的设置.
-*************************************************************************/
-void modify_logger_realtime_config_by_cjson_obj(const cJSON *obj)
-{
-    CHECK_NULL_1PARAM_WITHOUT_RET(obj);
-
-    cJSON *level = NULL;
-    cJSON *debug_switch = NULL;
-
-    level = cJSON_GetObjectItemCaseSensitive(obj, "level");
-    if (level != NULL)
-    {
-        set_log_level_str(level->valuestring);
-    }
-
-    debug_switch = cJSON_GetObjectItemCaseSensitive(obj, "debug_switch");
-    if (debug_switch != NULL)
-    {
-        set_log_flush_mode(atoi(debug_switch->valuestring));
-    }
-
     return ;
 }
