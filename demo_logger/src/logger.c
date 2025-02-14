@@ -534,7 +534,8 @@ int log_enqueue(QUEUE_NODE_T *queue, unsigned max_queue_size, const LOG_DATA_T *
     CHECK_NULL_2PARAM_WITH_RET(queue->data, queue->data[queue->tail].buf, -1);
 
     snprintf(queue->data[queue->tail].buf, s_log_conf_item.log_maxlen, "%s", data->buf);
-    snprintf(queue->data[queue->tail].logname, FILENAME_SIZE, "%s", data->logname);
+    memcpy(queue->data[queue->tail].logname, data->logname, FILENAME_SIZE);
+    queue->data[queue->tail].logname[FILENAME_SIZE - 1] = '\0';
     queue->data[queue->tail].mode = data->mode;
     queue->data[queue->tail].level = data->level;
 
@@ -572,7 +573,8 @@ int log_dequeue(QUEUE_NODE_T *queue, unsigned max_queue_size, LOG_DATA_T *data)
     CHECK_NULL_1PARAM_WITH_RET(queue->data, -1);
 
     snprintf(data->buf, s_log_conf_item.log_maxlen, "%s", queue->data[queue->head].buf);
-    snprintf(data->logname, FILENAME_SIZE, "%s", queue->data[queue->head].logname);
+    memcpy(data->logname, queue->data[queue->head].logname, FILENAME_SIZE);
+    data->logname[FILENAME_SIZE - 1] = '\0';
     data->mode = queue->data[queue->head].mode;
     data->level = queue->data[queue->head].level;
 
@@ -1354,10 +1356,7 @@ int print_log_only_file(FILE *log_file_ptr, const char *log_buff, uint8_t level)
         }
         len = s_file_log_buflen;
 
-        memset(s_file_log_buf, 0, LOG_BUF_SIZE);
-        s_file_log_buflen = 0;
-
-        snprintf(s_file_log_buf + s_file_log_buflen, LOG_BUF_SIZE - s_file_log_buflen, "%s\n", log_buff);
+        snprintf(s_file_log_buf, LOG_BUF_SIZE, "%s\n", log_buff);
 
         s_file_log_buflen = strlen(s_file_log_buf);
 
@@ -1814,7 +1813,7 @@ int init_logger(char *log_conf_path, char *app_name)
     s_log_conf_item.log_maxlen          = SUFFIX_BUFSIZE;
     s_log_conf_item.single_file_size_mb = LOGFILE_SIZE;
     s_log_conf_item.directory_size_mb   = 4 * LOGFILE_SIZE;
-    snprintf(s_log_conf_item.log_file_path, FILEPATH_SIZE, "%s", "/data/log");
+    snprintf(s_log_conf_item.log_file_path, FILEPATH_SIZE, "/data/log");
 
     if (app_name != NULL)
     {
