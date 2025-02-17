@@ -342,6 +342,71 @@ void list_reverse_test(void)
     return ;
 }
 
+int bubble_sort(int *arr, int arrnum)
+{
+    int tmp = 0;
+    int flag = 0;
+
+    for (int i = 0; i < arrnum - 1; i++)
+    {
+        for (int j = 0; j < arrnum - i - 1; j++)
+        {
+            if (arr[j] > arr[j + 1])
+            {
+                tmp = arr[j];
+                arr[j] = arr[j + 1];
+                arr[j + 1] = tmp;
+                flag = 0;
+            }
+        }
+
+        if (flag != 0)
+        {
+            break;
+        }
+    }
+
+    return 0;
+}
+
+int insert_sort(int *arr, int arrnum)
+{
+    for (int i = 1; i < arrnum - 1; i++)
+    {
+        for (int j = i; j < arrnum - 1; j++)
+        {
+            
+        }
+    }
+
+    return 0;
+}
+
+int sort_algo_test()
+{
+    int arr[] = {33, 5, 23, 697, 12, 88};
+
+    /* 冒泡排序 */
+    TIME_ELAPSED(bubble_sort(arr, sizeof(arr) / sizeof(int)));
+    for (int i = 0; i < sizeof(arr) / sizeof(int); i++)
+    {
+        printf("%d ", arr[i]);
+    }
+    printf("\n");
+
+    /* 插入排序 */
+
+    /* 归并排序 */
+
+    /* 堆排序 */
+
+    /* 基数排序 */
+
+    /* 桶排序 */
+
+    return 0;
+}
+
 /************************************************************************* 
 *  负责人    : xupeng
 *  创建日期  : 20250117
@@ -361,17 +426,19 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    if (epoll_timer_run() != 0)
-    {
-        APP_LOG_ERROR("epoll timer went error");
-    }
+    // if (epoll_timer_run() != 0)
+    // {
+    //     APP_LOG_ERROR("epoll timer went error");
+    // }
 
-    if (common_list_interface_test() != 0)
-    {
-        APP_LOG_ERROR("list interface test failed");
-    }
+    // if (common_list_interface_test() != 0)
+    // {
+    //     APP_LOG_ERROR("list interface test failed");
+    // }
 
-    list_reverse_test();
+    // list_reverse_test();
+
+    sort_algo_test();
 
     // wait for thread.
     while (1)

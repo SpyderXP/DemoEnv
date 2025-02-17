@@ -111,9 +111,23 @@ enum OUT_MODE
 #define APP_MODULE_LOG_EMERG(module, format, ...)           \
             APP_MODULE_LOG(module, FILE_AND_SCREEN, LOG_EMERG, format, ##__VA_ARGS__)       /* EMERG */
 
-/* 字节流日志打印，暂时仅支持 DEBUG 等级 */
+/* 字节流日志打印 */
 #define APP_MODULE_BYTE_LOG_DEBUG(module, byte, byte_len) \
-            APP_MODULE_BYTE_LOG(module, FILE_AND_SCREEN, LOG_DEBUG, byte, byte_len)
+            APP_MODULE_BYTE_LOG(module, FILE_AND_SCREEN, LOG_DEBUG, byte, byte_len)         /* DEBUG */
+#define APP_MODULE_BYTE_LOG_INFO(module, byte, byte_len) \
+            APP_MODULE_BYTE_LOG(module, FILE_AND_SCREEN, LOG_INFO, byte, byte_len)          /* INFO */
+#define APP_MODULE_BYTE_LOG_NOTICE(module, byte, byte_len) \
+            APP_MODULE_BYTE_LOG(module, FILE_AND_SCREEN, LOG_NOTICE, byte, byte_len)        /* NOTICE */
+#define APP_MODULE_BYTE_LOG_WARNING(module, byte, byte_len) \
+            APP_MODULE_BYTE_LOG(module, FILE_AND_SCREEN, LOG_WARNING, byte, byte_len)       /* WARNING */
+#define APP_MODULE_BYTE_LOG_ERROR(module, byte, byte_len) \
+            APP_MODULE_BYTE_LOG(module, FILE_AND_SCREEN, LOG_ERROR, byte, byte_len)         /* ERROR */
+#define APP_MODULE_BYTE_LOG_CRIT(module, byte, byte_len) \
+            APP_MODULE_BYTE_LOG(module, FILE_AND_SCREEN, LOG_CRIT, byte, byte_len)          /* CRIT */
+#define APP_MODULE_BYTE_LOG_ALERT(module, byte, byte_len) \
+            APP_MODULE_BYTE_LOG(module, FILE_AND_SCREEN, LOG_ALERT, byte, byte_len)         /* ALERT */
+#define APP_MODULE_BYTE_LOG_EMERG(module, byte, byte_len) \
+            APP_MODULE_BYTE_LOG(module, FILE_AND_SCREEN, LOG_EMERG, byte, byte_len)         /* EMERG */
 
 /* 日志输出到指定文件(同时输出到屏幕和文件) */
 #define APP_FLOG_DEBUG(file, format, ...)   APP_FLOG(file, FILE_AND_SCREEN, LOG_DEBUG, format, ##__VA_ARGS__)
