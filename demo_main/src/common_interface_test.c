@@ -23,6 +23,7 @@
 #include "common_macro.h"
 #include "epoll_timer.h"
 #include "common_list.h"
+#include "common_sort.h"
 
 /* 用户自定义定时器参数数据域 */
 typedef struct EPOLL_TIMER_DATA_S
@@ -342,67 +343,58 @@ void list_reverse_test(void)
     return ;
 }
 
-int bubble_sort(int *arr, int arrnum)
-{
-    int tmp = 0;
-    int flag = 0;
-
-    for (int i = 0; i < arrnum - 1; i++)
-    {
-        for (int j = 0; j < arrnum - i - 1; j++)
-        {
-            if (arr[j] > arr[j + 1])
-            {
-                tmp = arr[j];
-                arr[j] = arr[j + 1];
-                arr[j + 1] = tmp;
-                flag = 0;
-            }
-        }
-
-        if (flag != 0)
-        {
-            break;
-        }
-    }
-
-    return 0;
-}
-
-int insert_sort(int *arr, int arrnum)
-{
-    for (int i = 1; i < arrnum - 1; i++)
-    {
-        for (int j = i; j < arrnum - 1; j++)
-        {
-            
-        }
-    }
-
-    return 0;
-}
-
 int sort_algo_test()
 {
-    int arr[] = {33, 5, 23, 697, 12, 88};
-
     /* 冒泡排序 */
-    TIME_ELAPSED(bubble_sort(arr, sizeof(arr) / sizeof(int)));
-    for (int i = 0; i < sizeof(arr) / sizeof(int); i++)
     {
-        printf("%d ", arr[i]);
+        int arr[] = {33, 5, 23, 33, 697, 12, 88};
+
+        TIME_ELAPSED(bubble_sort(arr, sizeof(arr) / sizeof(int)));
+        for (int i = 0; i < sizeof(arr) / sizeof(int); i++)
+        {
+            printf("%d ", arr[i]);
+        }
+        printf("\n");
     }
-    printf("\n");
 
     /* 插入排序 */
+    {
+        int arr[] = {33, 5, 23, 33, 697, 12, 88};
+
+        TIME_ELAPSED(insert_sort(arr, sizeof(arr) / sizeof(int)));
+        for (int i = 0; i < sizeof(arr) / sizeof(int); i++)
+        {
+            printf("%d ", arr[i]);
+        }
+        printf("\n");
+    }
 
     /* 归并排序 */
+    {
+        int arr[] = {33, 5, 23, 33, 697, 12, 88};
+
+        TIME_ELAPSED(merge_sort(arr, sizeof(arr) / sizeof(int)));
+        for (int i = 0; i < sizeof(arr) / sizeof(int); i++)
+        {
+            printf("%d ", arr[i]);
+        }
+        printf("\n");
+    }
 
     /* 堆排序 */
+    {
+
+    }
 
     /* 基数排序 */
+    {
+
+    }
 
     /* 桶排序 */
+    {
+
+    }
 
     return 0;
 }
