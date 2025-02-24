@@ -12,6 +12,22 @@
 /************************************************************************* 
 *  负责人    : xupeng
 *  创建日期  : 20250219
+*  函数功能  : 整数交换.
+*  输入参数  : a - 整数a.
+*             b - 整数b.
+*  输出参数  : 无.
+*  返回值    : 无.
+*************************************************************************/
+void swap(int *a, int *b)
+{
+    int temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20250219
 *  函数功能  : 冒泡排序 - O(n^2).
 *  输入参数  : arr - 待排序数组.
 *             arrnum - 数据个数.
@@ -20,7 +36,6 @@
 *************************************************************************/
 int bubble_sort(int *arr, int arrnum)
 {
-    int tmp = 0;
     int flag = 0;
 
     for (int i = 0; i < arrnum - 1; i++)
@@ -29,9 +44,7 @@ int bubble_sort(int *arr, int arrnum)
         {
             if (arr[j] > arr[j + 1])
             {
-                tmp = arr[j];
-                arr[j] = arr[j + 1];
-                arr[j + 1] = tmp;
+                swap(&arr[j], &arr[j + 1]);
                 flag = 0;
             }
         }
@@ -56,17 +69,13 @@ int bubble_sort(int *arr, int arrnum)
 *************************************************************************/
 int insert_sort(int *arr, int arrnum)
 {
-    int tmp = 0;
-
     for (int i = 1; i < arrnum; i++)
     {
         for (int j = i; j >= 1; j--)
         {
             if (arr[j] < arr[j - 1])
             {
-                tmp = arr[j];
-                arr[j] = arr[j - 1];
-                arr[j - 1] = tmp;
+                swap(&arr[j], &arr[j - 1]);
             }
             else 
             {
@@ -157,6 +166,86 @@ int merge_sort(int *arr, int arrnum)
 
     /* 合并两个已排序的子数组 */
     merge(arr, left, mid, right, arrnum - mid);
+
+    return 0;
+}
+
+/*
+    8 4 3 2 7 5 6 1
+    max_heapify(arr, 8, 3)
+        largest = 3, left = 7, right = 8
+    8 4 3 6 7 5 2 1
+
+    max_heapify(arr, 8, 2)
+        largest = 2, left = 5, right = 6
+    8 4 5 6 7 3 2 1
+
+    max_heapify(arr, 8, 1)
+    max_heapify(arr, 8, 0)
+
+*/
+
+// 维护最大堆
+void max_heapify(int *arr, int arrnum, int i)
+{
+    int largest = i; // 初始化最大为根节点
+    int left = 2 * i + 1; // 左子节点
+    int right = 2 * i + 2; // 右子节点
+
+    // 如果左子节点大于根节点
+    if (left < arrnum && arr[left] > arr[largest])
+    {
+        largest = left;
+    }
+
+    // 如果右子节点大于当前最大值
+    if (right < arrnum && arr[right] > arr[largest])
+    {
+        largest = right;
+    }
+
+    // 如果最大值不是根节点
+    if (largest != i)
+    {
+        swap(&arr[i], &arr[largest]);
+
+        // 递归地对受影响的子树进行堆化
+        max_heapify(arr, arrnum, largest);
+    }
+}
+
+// 构建最大堆
+void build_max_heap(int *arr, int arrnum)
+{
+    for (int i = arrnum / 2 - 1; i >= 0; i--)
+    {
+        max_heapify(arr, arrnum, i);
+    }
+}
+
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20250219
+*  函数功能  : 堆排序 - O(nlogn).
+*  输入参数  : arr - 待排序数组.
+*             arrnum - 数据个数.
+*  输出参数  : 无.
+*  返回值    : 无.
+*************************************************************************/
+int heap_sort(int *arr, int arrnum)
+{
+    /* 构建最大堆 */
+    build_max_heap(arr, arrnum);
+
+    /* 一个个从堆中提取元素 */
+    for (int i = arrnum - 1; i > 0; i--)
+    {
+        /* 将当前根节点（最大值）移到数组末尾 */
+        swap(&arr[0], &arr[i]);
+
+        /* 调用max_heapify重建最大堆 */
+        max_heapify(arr, i, 0);
+    }
 
     return 0;
 }

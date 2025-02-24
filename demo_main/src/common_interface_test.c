@@ -383,7 +383,14 @@ int sort_algo_test()
 
     /* 堆排序 */
     {
+        int arr[] = {33, 5, 23, 33, 697, 12, 88};
 
+        TIME_ELAPSED(heap_sort(arr, sizeof(arr) / sizeof(int)));
+        for (int i = 0; i < sizeof(arr) / sizeof(int); i++)
+        {
+            printf("%d ", arr[i]);
+        }
+        printf("\n");
     }
 
     /* 基数排序 */
