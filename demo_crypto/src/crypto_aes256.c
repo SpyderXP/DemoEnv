@@ -17,6 +17,8 @@
 #include "crypto_aes256.h"
 #include "crypto_macro.h"
 
+#define AES256_KEY_FLIENAME "aes256.key"
+
 /************************************************************************* 
 *  负责人    : xupeng
 *  创建日期  : 20250117
@@ -61,19 +63,20 @@ int read_openssl_aes256_key_info(uint8_t *key, uint8_t *iv, const char *infile)
 *  负责人    : xupeng
 *  创建日期	 : 20250208
 *  函数功能  : AES密钥生成.
-*  输入参数  : key_file - 指定加密的密钥文件.
+*  输入参数  : key_path - 指定加密的密钥路径.
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int aes256_crypto_key_generator(const char *key_file)
+int aes256_crypto_key_generator(const char *key_path)
 {
     FILE        *fp                     = NULL;
     uint8_t     key[AES_KEY_LEN]        = {0};
     uint8_t     iv[AES_IV_LEN]          = {0};
+    char        key_file[FULL_FILENAME_LEN] = {0};
 
-    if (NULL == key_file)
+    if (NULL == key_path)
     {
-        APP_LOG_ERROR("Parameter is NULL[key_file: %p]", key_file);
+        APP_LOG_ERROR("Parameter is NULL[key_path: %p]", key_path);
         return -1;
     }
 
@@ -90,6 +93,7 @@ int aes256_crypto_key_generator(const char *key_file)
         return -1;
     }
 
+    snprintf(key_file, sizeof(key_file), "%s/"AES256_KEY_FLIENAME, key_path);
     fp = fopen(key_file, "wb");
     if (NULL == fp)
     {
@@ -115,15 +119,14 @@ int aes256_crypto_key_generator(const char *key_file)
 *  函数功能  : AES加密 - 根据指定的MMAP地址，进行文件加密操作.
 *  输入参数  : addr - mmap对应的待加密文件地址.
 *             datalen - 待加密的文件长度.
-*             key_file - 指定加密的密钥文件.
+*             key_path - 指定加密的密钥路径.
 *             encrypt_file - 指定加密的文件.
-*             filename - 指定加密的文件名.
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int aes256_encrypt_specified_mmap_addr(const char *addr, 
+int aes256_encrypt_specified_mmap_addr(const uint8_t *addr, 
                                        int datalen, 
-                                       const char *key_file, 
+                                       const char *key_path, 
                                        const char *encrypt_file)
 {
     int             ret                     = -1;
@@ -136,6 +139,7 @@ int aes256_encrypt_specified_mmap_addr(const char *addr,
     uint8_t         *ciphertext             = NULL;
     uint8_t         key[AES_KEY_LEN]        = {0};
     uint8_t         iv[AES_IV_LEN]          = {0};
+    char            fullpath[FULL_FILENAME_LEN] = {0};
 
     if (NULL == addr ||  NULL == encrypt_file)
     {
@@ -144,7 +148,8 @@ int aes256_encrypt_specified_mmap_addr(const char *addr,
     }
 
     /* 读取密钥 */
-    if (read_openssl_aes256_key_info(key, iv, key_file) != 0)
+    snprintf(fullpath, sizeof(fullpath), "%s/"AES256_KEY_FLIENAME, key_path);
+    if (read_openssl_aes256_key_info(key, iv, fullpath) != 0)
     {
         APP_LOG_ERROR("Failed to read openssl aes256 key info");
         return -1;
@@ -171,7 +176,7 @@ int aes256_encrypt_specified_mmap_addr(const char *addr,
     fp = fopen(encrypt_file, "wb");
     if (NULL == fp)
     {
-        APP_LOG_ERROR("fopen failed[%s]", encrypt_file);
+        APP_LOG_ERROR("fopen failed[%s]", fullpath);
         goto CLEAN;
     }
 
@@ -245,14 +250,14 @@ CLEAN:
 *  函数功能  : AES解密 - 根据指定的MMAP地址，进行文件解密操作.
 *  输入参数  : addr - mmap对应的待解密文件地址.
 *             datalen - 待解密的文件长度.
-*             key_file - 指定解密的密钥文件.
+*             key_path - 指定解密的密钥路径.
 *             decrypt_file - 指定解密的文件.
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int aes256_decrypt_specified_mmap_addr(const char *addr, 
+int aes256_decrypt_specified_mmap_addr(const uint8_t *addr, 
                                        int datalen, 
-                                       const char *key_file, 
+                                       const char *key_path, 
                                        const char *decrypt_file)
 {
     int             ret                     = -1;
@@ -265,6 +270,7 @@ int aes256_decrypt_specified_mmap_addr(const char *addr,
     uint8_t         *ciphertext             = NULL;
     uint8_t         key[AES_KEY_LEN]        = {0};
     uint8_t         iv[AES_IV_LEN]          = {0};
+    char            fullpath[FULL_FILENAME_LEN] = {0};
 
     if (NULL == addr || NULL == decrypt_file)
     {
@@ -273,7 +279,8 @@ int aes256_decrypt_specified_mmap_addr(const char *addr,
     }
 
     /* 读取密钥 */
-    if (read_openssl_aes256_key_info(key, iv, key_file) != 0)
+    snprintf(fullpath, sizeof(fullpath), "%s/"AES256_KEY_FLIENAME, key_path);
+    if (read_openssl_aes256_key_info(key, iv, fullpath) != 0)
     {
         APP_LOG_ERROR("Failed to read openssl aes256 key info");
         return -1;
@@ -300,7 +307,7 @@ int aes256_decrypt_specified_mmap_addr(const char *addr,
     fp = fopen(decrypt_file, "wb");
     if (NULL == fp)
     {
-        APP_LOG_ERROR("fopen failed[%s]", decrypt_file);
+        APP_LOG_ERROR("fopen failed[%s]", fullpath);
         goto CLEAN;
     }
 

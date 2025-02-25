@@ -20,12 +20,12 @@ extern "C" {
 *  函数功能  : 随机密钥文件生成接口.
 *  输入参数  : filename - 待加密文件名.
 *             algo - 加密算法名称字符串.
-*             key_file - 密钥文件.
+*             key_path - 密钥路径.
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *  其他     : 目前支持的加密算法(algo参数) aes256.
 *************************************************************************/
-int crypto_keygen(const char *filename, const char *algo, const char *key_file);
+int crypto_keygen(const char *filename, const char *algo, const char *key_path);
 
 /************************************************************************* 
 *  负责人    : xupeng
@@ -33,7 +33,7 @@ int crypto_keygen(const char *filename, const char *algo, const char *key_file);
 *  函数功能  : 文件加密接口.
 *  输入参数  : filename - 待加密文件名.
 *             algo - 加密算法名称字符串.
-*             key_file - 密钥文件.
+*             key_path - 密钥路径.
 *             origin_path - 待加密文件路径.
 *             encrypt_path - 指定的加密文件生成路径.
 *  输出参数  : 无.
@@ -42,7 +42,7 @@ int crypto_keygen(const char *filename, const char *algo, const char *key_file);
 *************************************************************************/
 int crypto_encrypt_file(const char *filename, 
                         const char *algo, 
-                        const char *key_file, 
+                        const char *key_path, 
                         const char *origin_path, 
                         const char *encrypt_path);
 
@@ -52,7 +52,7 @@ int crypto_encrypt_file(const char *filename,
 *  函数功能  : 文件解密接口.
 *  输入参数  : filename - 待解密文件名.
 *             algo - 解密算法名称字符串.
-*             key_file - 密钥文件.
+*             key_path - 密钥路径.
 *             encrypt_path - 待解密文件路径.
 *             decrypt_path - 指定的解密文件生成路径.
 *  输出参数  : 无.
@@ -61,7 +61,7 @@ int crypto_encrypt_file(const char *filename,
 *************************************************************************/
 int crypto_decrypt_file(const char *filename, 
                         const char *algo, 
-                        const char *key_file, 
+                        const char *key_path, 
                         const char *encrypt_path, 
                         const char *decrypt_path);
 
@@ -81,12 +81,12 @@ void crypto_main(int argc, char **argv);
 /************************************************************************* 
 *  负责人    : xupeng
 *  创建日期  : 20250117
-*  函数功能  : 检查必填加密参数(文件名/算法名).
+*  函数功能  : 检查必填加密/解密参数(文件名/密钥路径/算法名).
 *  输入参数  : 无.
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int crypto_check_required_encryption_param(void);
+int check_required_crypto_param(void);
 
 #endif
 
