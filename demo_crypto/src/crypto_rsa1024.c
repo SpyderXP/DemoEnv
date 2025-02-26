@@ -1,9 +1,9 @@
 /******************************************************************************
-  *  文件名     : crypto_rsa2048.c
+  *  文件名     : crypto_rsa1024.c
   *  负责人     : xupeng
   *  创建日期   : 20250225
   *  版本号     : v1.1 
-  *  文件描述   : RSA2048加解密接口.
+  *  文件描述   : RSA1024加解密接口.
   *  其他       : 无.
   *  修改日志   : 无.
 ******************************************************************************/
@@ -14,11 +14,13 @@
 #include <openssl/pem.h>
 #include <openssl/evp.h>
 #include "logger.h"
-#include "crypto_rsa2048.h"
+#include "crypto_rsa1024.h"
 #include "crypto_macro.h"
 
-#define RSA2048_PUBKEY_FLIENAME "rsa2048_pub.key"
-#define RSA2048_PRIVKEY_FLIENAME "rsa2048_priv.key"
+#define RSA1024_PUBKEY_FLIENAME "rsa1024_pub.key"
+#define RSA1024_PRIVKEY_FLIENAME "rsa1024_priv.key"
+#define RSA1024_ENCRYPT_LEN (128 - RSA_PKCS1_PADDING_SIZE)
+#define RSA1024_DECRYPT_LEN (128)
 
 /************************************************************************* 
 *  负责人    : xupeng
@@ -28,7 +30,7 @@
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int rsa2048_crypto_key_generator(const char *key_path)
+int rsa1024_crypto_key_generator(const char *key_path)
 {
     int         ret                         = -1;
     RSA         *rsa                        = NULL;
@@ -51,15 +53,15 @@ int rsa2048_crypto_key_generator(const char *key_path)
         goto CLEAN;
     }
 
-    /* Generate the RSA key pair (2048 bits) */
-    if (0 == BN_set_word(bne, RSA_F4) || 0 == RSA_generate_key_ex(rsa, 2048, bne, NULL))
+    /* Generate the RSA key pair (1024 bits) */
+    if (0 == BN_set_word(bne, RSA_F4) || 0 == RSA_generate_key_ex(rsa, 1024, bne, NULL))
     {
         APP_LOG_ERROR("Failed to generate RSA keys");
         goto CLEAN;
     }
 
     /* Write public key to file */
-    snprintf(priv_key, sizeof(priv_key), "%s"RSA2048_PRIVKEY_FLIENAME, key_path);
+    snprintf(priv_key, sizeof(priv_key), "%s"RSA1024_PRIVKEY_FLIENAME, key_path);
     fp = fopen(priv_key, "wb");
     if (PEM_write_RSAPrivateKey(fp, rsa, NULL, NULL, 0, NULL, NULL) != 1)
     {
@@ -71,7 +73,7 @@ int rsa2048_crypto_key_generator(const char *key_path)
     fp = NULL;
 
     /* Write public key to file */
-    snprintf(pub_key, sizeof(pub_key), "%s"RSA2048_PUBKEY_FLIENAME, key_path);
+    snprintf(pub_key, sizeof(pub_key), "%s"RSA1024_PUBKEY_FLIENAME, key_path);
     fp = fopen(pub_key, "wb");
     if (PEM_write_RSA_PUBKEY(fp, rsa) != 1)
     {
@@ -105,13 +107,14 @@ CLEAN:
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int rsa2048_encrypt_specified_mmap_addr(const uint8_t *addr, 
+int rsa1024_encrypt_specified_mmap_addr(const uint8_t *addr, 
                                        int datalen, 
                                        const char *key_path, 
                                        const char *encrypt_file)
 {
     int         ret                         = -1;
     int         ciphertext_len              = 0;
+    int         readlen                     = 0;
     FILE        *pubkeyfile                 = NULL;
     FILE        *outfile                    = NULL;
     RSA         *pubkey                     = NULL;
@@ -124,7 +127,7 @@ int rsa2048_encrypt_specified_mmap_addr(const uint8_t *addr,
         return -1;
     }
 
-    snprintf(fullpath, sizeof(fullpath), "%s/"RSA2048_PUBKEY_FLIENAME, key_path);
+    snprintf(fullpath, sizeof(fullpath), "%s/"RSA1024_PUBKEY_FLIENAME, key_path);
     pubkeyfile = fopen(fullpath, "rb");
     if (NULL == pubkeyfile)
     {
@@ -139,27 +142,11 @@ int rsa2048_encrypt_specified_mmap_addr(const uint8_t *addr,
         goto CLEAN;
     }
 
-    // Read input file
-    // FILE *infile = fopen(input_file, "rb");
-    // if (!infile) {
-    //     perror("Opening input file");
-    //     return -1;
-    // }
-
-    // fseek(infile, 0, SEEK_END);
-    // long int filesize = ftell(infile);
-    // rewind(infile);
-
-    // unsigned char *plaintext = malloc(filesize);
-    // fread(plaintext, 1, filesize, infile);
-    // fclose(infile);
-
     /* Encrypt data */
-    ciphertext = malloc(RSA_size(pubkey));
-    ciphertext_len = RSA_public_encrypt(datalen, addr, ciphertext, pubkey, RSA_PKCS1_PADDING);
-    if (-1 == ciphertext_len)
+    ciphertext = calloc(1, RSA_size(pubkey));
+    if (NULL == ciphertext)
     {
-        APP_LOG_ERROR("Encryption failed\n");
+        APP_LOG_ERROR("calloc failed");
         goto CLEAN;
     }
 
@@ -168,6 +155,26 @@ int rsa2048_encrypt_specified_mmap_addr(const uint8_t *addr,
     if (NULL == outfile)
     {
         APP_LOG_ERROR("Opening output file");
+        goto CLEAN;
+    }
+
+    while (readlen + RSA1024_ENCRYPT_LEN < datalen)
+    {
+        ciphertext_len = RSA_public_encrypt(RSA1024_ENCRYPT_LEN, addr + readlen, ciphertext, pubkey, RSA_PKCS1_PADDING);
+        if (-1 == ciphertext_len)
+        {
+            APP_LOG_ERROR("Encryption failed\n");
+            goto CLEAN;
+        }
+
+        fwrite(ciphertext, 1, ciphertext_len, outfile);
+        readlen += RSA1024_ENCRYPT_LEN;
+    }
+
+    ciphertext_len = RSA_public_encrypt(datalen - readlen, addr + readlen, ciphertext, pubkey, RSA_PKCS1_PADDING);
+    if (-1 == ciphertext_len)
+    {
+        APP_LOG_ERROR("Encryption failed\n");
         goto CLEAN;
     }
 
@@ -213,13 +220,14 @@ CLEAN:
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int rsa2048_decrypt_specified_mmap_addr(const uint8_t *addr, 
+int rsa1024_decrypt_specified_mmap_addr(const uint8_t *addr, 
                                        int datalen, 
                                        const char *key_path, 
                                        const char *decrypt_file)
 {
     int         ret                         = -1;
     int         plaintext_len               = 0;
+    int         readlen                     = 0;
     FILE        *privkeyfile                = NULL;
     FILE        *outfile                    = NULL;
     RSA         *privkey                    = NULL;
@@ -232,7 +240,7 @@ int rsa2048_decrypt_specified_mmap_addr(const uint8_t *addr,
         return -1;
     }
 
-    snprintf(fullpath, sizeof(fullpath), "%s/"RSA2048_PRIVKEY_FLIENAME, key_path);
+    snprintf(fullpath, sizeof(fullpath), "%s/"RSA1024_PRIVKEY_FLIENAME, key_path);
     privkeyfile = fopen(fullpath, "rb");
     if (NULL == privkeyfile)
     {
@@ -243,39 +251,43 @@ int rsa2048_decrypt_specified_mmap_addr(const uint8_t *addr,
     privkey = PEM_read_RSAPrivateKey(privkeyfile, NULL, NULL, NULL);
     if (NULL == privkey)
     {
-        APP_LOG_ERROR("Failed to read private key from file\n");
+        APP_LOG_ERROR("Failed to read private key from file");
         goto CLEAN;
     }
 
-    // Read encrypted data from input file
-    // FILE *infile = fopen(input_file, "rb");
-    // if (!infile) {
-    //     perror("Opening input file");
-    //     return -1;
-    // }
-
-    // fseek(infile, 0, SEEK_END);
-    // long int filesize = ftell(infile);
-    // rewind(infile);
-
-    // unsigned char *ciphertext = malloc(filesize);
-    // fread(ciphertext, 1, filesize, infile);
-    // fclose(infile);
-
-    // Decrypt data
-    plaintext = malloc(RSA_size(privkey));
-    plaintext_len = RSA_private_decrypt(datalen, addr, plaintext, privkey, RSA_PKCS1_PADDING);
-    if (-1 == plaintext_len)
+    /* Decrypt data */
+    plaintext = calloc(1, RSA_size(privkey));
+    if (NULL == plaintext)
     {
-        APP_LOG_ERROR("Decryption failed\n");
+        APP_LOG_ERROR("calloc failed");
         goto CLEAN;
     }
 
-    // Write decrypted data to output file
+    /* Write decrypted data to output file */
     outfile = fopen(decrypt_file, "wb");
     if (NULL == outfile)
     {
         APP_LOG_ERROR("Opening output file");
+        goto CLEAN;
+    }
+
+    while (readlen + RSA1024_DECRYPT_LEN < datalen)
+    {
+        plaintext_len = RSA_private_decrypt(RSA1024_DECRYPT_LEN, addr + readlen, plaintext, privkey, RSA_PKCS1_PADDING);
+        if (-1 == plaintext_len)
+        {
+            APP_LOG_ERROR("Decryption failed\n");
+            goto CLEAN;
+        }
+
+        fwrite(plaintext, 1, plaintext_len, outfile);
+        readlen += RSA1024_DECRYPT_LEN;
+    }
+
+    plaintext_len = RSA_private_decrypt(datalen - readlen, addr + readlen, plaintext, privkey, RSA_PKCS1_PADDING);
+    if (-1 == plaintext_len)
+    {
+        APP_LOG_ERROR("Decryption failed\n");
         goto CLEAN;
     }
 

@@ -1,14 +1,14 @@
 /******************************************************************************
-  *  文件名     : crypto_rsa2048.h
+  *  文件名     : crypto_rsa1024.h
   *  负责人     : xupeng
   *  创建日期   : 20250225
   *  版本号     : v1.1 
-  *  文件描述   : RSA2048加解密接口.
+  *  文件描述   : RSA1024加解密接口.
   *  其他       : 无.
   *  修改日志   : 无.
 ******************************************************************************/
-#ifndef __CRYPTO_RSA2048_H__
-#define __CRYPTO_RSA2048_H__
+#ifndef __CRYPTO_RSA1024_H__
+#define __CRYPTO_RSA1024_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,7 +22,7 @@ extern "C" {
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int rsa2048_crypto_key_generator(const char *key_path);
+int rsa1024_crypto_key_generator(const char *key_path);
 
 /************************************************************************* 
 *  负责人    : xupeng
@@ -35,7 +35,7 @@ int rsa2048_crypto_key_generator(const char *key_path);
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int rsa2048_encrypt_specified_mmap_addr(const uint8_t *addr, 
+int rsa1024_encrypt_specified_mmap_addr(const uint8_t *addr, 
                                        int datalen, 
                                        const char *key_path, 
                                        const char *encrypt_file);
@@ -51,7 +51,7 @@ int rsa2048_encrypt_specified_mmap_addr(const uint8_t *addr,
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int rsa2048_decrypt_specified_mmap_addr(const uint8_t *addr, 
+int rsa1024_decrypt_specified_mmap_addr(const uint8_t *addr, 
                                        int datalen, 
                                        const char *key_path, 
                                        const char *decrypt_file);

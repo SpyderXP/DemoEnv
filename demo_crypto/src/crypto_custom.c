@@ -20,7 +20,7 @@
 #include "crypto_custom.h"
 #include "crypto_macro.h"
 #include "crypto_aes256.h"
-#include "crypto_rsa2048.h"
+#include "crypto_rsa1024.h"
 #include "common_macro.h"
 
 #define HELP_INFO_STR_SIZE 2048
@@ -65,12 +65,12 @@ CRYPTO_FUNC_SET_T g_crypto_func_set[] =
         aes256_decrypt_specified_mmap_addr
     },
 
-    /* 2048位 RSA 非对称加密/解密 */
+    /* 1024位 RSA 非对称加密/解密 */
     {
-        "rsa2048", 
-        rsa2048_crypto_key_generator, 
-        rsa2048_encrypt_specified_mmap_addr, 
-        rsa2048_decrypt_specified_mmap_addr
+        "rsa1024", 
+        rsa1024_crypto_key_generator, 
+        rsa1024_encrypt_specified_mmap_addr, 
+        rsa1024_decrypt_specified_mmap_addr
     }
 };
 
@@ -100,7 +100,7 @@ void help_intro(void)
         "\n****************************************************************************************\n"
         "Parameter Instruction:\n"
         "\t-a\t--algo\t\tCrypto Algorithm Name[Required arg]\n"
-        "\t\t\t\t\tSupported algorithms: aes256, rsa\n"
+        "\t\t\t\t\tSupported algorithms: aes256, rsa1024\n"
         "\t-o\t--oridir\tOriginal file path[Required arg]\n"
         "\t-e\t--encryptdir\tEncrypted file path[Required arg]\n"
         "\t-d\t--decryptdir\tDecrypted file path[Required arg]\n"

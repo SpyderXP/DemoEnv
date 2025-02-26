@@ -135,7 +135,6 @@ int aes256_encrypt_specified_mmap_addr(const uint8_t *addr,
     int             readlen                 = 0;
     FILE            *fp                     = NULL;
     EVP_CIPHER_CTX  *ctx                    = NULL;
-    uint8_t         *plaintext              = NULL;
     uint8_t         *ciphertext             = NULL;
     uint8_t         key[AES_KEY_LEN]        = {0};
     uint8_t         iv[AES_IV_LEN]          = {0};
@@ -182,18 +181,16 @@ int aes256_encrypt_specified_mmap_addr(const uint8_t *addr,
 
     /* 分块读取和加密数据 */
     sup_len = EVP_CIPHER_block_size(EVP_aes_256_cbc());
-    plaintext = (uint8_t *)calloc(1, BUFFER_SIZE + BUFFER_SIZE + sup_len);
-    if (NULL == plaintext)
+    ciphertext = (uint8_t *)calloc(1, BUFFER_SIZE + sup_len);
+    if (NULL == ciphertext)
     {
         APP_LOG_ERROR("calloc failed");
         goto CLEAN;
     }
 
-    ciphertext = plaintext + BUFFER_SIZE;
     while (readlen + BUFFER_SIZE < datalen)
     {
-        memcpy(plaintext, addr + readlen, BUFFER_SIZE);
-        if (EVP_EncryptUpdate(ctx, ciphertext, &outlen, plaintext, BUFFER_SIZE) != 1)
+        if (EVP_EncryptUpdate(ctx, ciphertext, &outlen, addr + readlen, BUFFER_SIZE) != 1)
         {
             APP_LOG_ERROR("EVP_EncryptUpdate failed");
             goto CLEAN;
@@ -202,8 +199,7 @@ int aes256_encrypt_specified_mmap_addr(const uint8_t *addr,
         readlen += BUFFER_SIZE;
     }
 
-    memcpy(plaintext, addr + readlen, datalen - readlen);
-    if (EVP_EncryptUpdate(ctx, ciphertext, &outlen, plaintext, datalen - readlen) != 1)
+    if (EVP_EncryptUpdate(ctx, ciphertext, &outlen, addr + readlen, datalen - readlen) != 1)
     {
         APP_LOG_ERROR("EVP_EncryptUpdate failed");
         goto CLEAN;
@@ -221,12 +217,11 @@ int aes256_encrypt_specified_mmap_addr(const uint8_t *addr,
 
     ret = 0;
 
-    /* 清理 */
 CLEAN:
-    if (plaintext != NULL)
+    if (ciphertext != NULL)
     {
-        free(plaintext);
-        plaintext = NULL;
+        free(ciphertext);
+        ciphertext = NULL;
     }
 
     if (fp != NULL)
@@ -267,7 +262,6 @@ int aes256_decrypt_specified_mmap_addr(const uint8_t *addr,
     FILE            *fp                     = NULL;
     EVP_CIPHER_CTX  *ctx                    = NULL;
     uint8_t         *plaintext              = NULL;
-    uint8_t         *ciphertext             = NULL;
     uint8_t         key[AES_KEY_LEN]        = {0};
     uint8_t         iv[AES_IV_LEN]          = {0};
     char            fullpath[FULL_FILENAME_LEN] = {0};
@@ -313,19 +307,16 @@ int aes256_decrypt_specified_mmap_addr(const uint8_t *addr,
 
     /* 分块读取和解密数据 */
     sup_len = EVP_CIPHER_block_size(EVP_aes_256_cbc());
-    plaintext = (uint8_t *)calloc(1, BUFFER_SIZE + sup_len + BUFFER_SIZE);
+    plaintext = (uint8_t *)calloc(1, BUFFER_SIZE + sup_len);
     if (NULL == plaintext)
     {
         APP_LOG_ERROR("calloc failed");
         goto CLEAN;
     }
 
-    ciphertext = plaintext + BUFFER_SIZE + sup_len;
     while (readlen + BUFFER_SIZE < datalen)
     {
-        memcpy(ciphertext, addr + readlen, BUFFER_SIZE);
-
-        if (EVP_DecryptUpdate(ctx, plaintext, &outlen, ciphertext, BUFFER_SIZE) != 1)
+        if (EVP_DecryptUpdate(ctx, plaintext, &outlen, addr + readlen, BUFFER_SIZE) != 1)
         {
             APP_LOG_ERROR("EVP_DecryptUpdate failed");
             goto CLEAN;
@@ -335,8 +326,7 @@ int aes256_decrypt_specified_mmap_addr(const uint8_t *addr,
         readlen += BUFFER_SIZE;
     }
 
-    memcpy(ciphertext, addr + readlen, datalen - readlen);
-    if (EVP_DecryptUpdate(ctx, plaintext, &outlen, ciphertext, datalen - readlen) != 1)
+    if (EVP_DecryptUpdate(ctx, plaintext, &outlen, addr + readlen, datalen - readlen) != 1)
     {
         APP_LOG_ERROR("EVP_DecryptUpdate failed");
         goto CLEAN;
