@@ -1,0 +1,10 @@
+{
+    "level": "ERROR",
+    "switch": "1",
+    "path": "./log",
+    "name": "test_code",
+    "errlog_name": "test_code_err",
+    "debug_switch": "1",
+    "single_file_size_mb": "1",
+    "directory_size_mb": "6"
+}
