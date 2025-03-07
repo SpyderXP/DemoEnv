@@ -116,7 +116,6 @@ char *possible_matches(const char *text, int state)
             }
 
             /* 返回匹配项的副本，由readline库free */
-            printf("$$$$$ %p\n", name);
             return strdup(name);
         }
 
@@ -273,9 +272,9 @@ void command_process_loop(void)
 *************************************************************************/
 int main(int argc, char **argv)
 {
-    char *log_conf_file = "./etc/tool_center_logconf.json";
+    // char *log_conf_file = "./etc/tool_center_logconf.json";
 
-    if (init_logger(log_conf_file, NULL) != 0) 
+    if (init_logger(NULL, NULL) != 0) 
     {
         fprintf(stdout, "Init logger failed\n");
         return -1;

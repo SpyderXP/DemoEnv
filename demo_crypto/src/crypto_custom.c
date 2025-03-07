@@ -52,7 +52,7 @@ char g_decrypt_path[PATHNAME_LEN]               = {0};  /* 解密文件路径 */
 char g_crypto_key_path[FULL_FILENAME_LEN]       = {0};  /* 密钥路径 */
 char g_specified_filename[FILENAME_LEN]         = {0};  /* 指定加密/解密的文件名称 */
 char g_crypto_algo_name[CRYPTO_ALGO_NAMELEN]    = {0};  /* 加密算法名称 */
-char g_help_info_str[HELP_INFO_STR_SIZE]        = {0};  /* 帮助信息字符串 */
+char g_crypto_tool_help_info[HELP_INFO_STR_SIZE] = {0};  /* 帮助信息字符串 */
 
 /* 加密/解密方法集合 */
 CRYPTO_FUNC_SET_T g_crypto_func_set[] = 
@@ -75,7 +75,7 @@ CRYPTO_FUNC_SET_T g_crypto_func_set[] =
 };
 
 /* 命令行参数选项 */
-struct option g_long_options[] = 
+struct option g_crypto_options[] = 
 {
     {"oridir",      required_argument,  NULL, 'o'},
     {"encryptdir",  required_argument,  NULL, 'e'},
@@ -94,9 +94,9 @@ struct option g_long_options[] =
 *  输出参数  : 无.
 *  返回值    : 无.
 *************************************************************************/
-void help_intro(void)
+void crypto_tool_help_intro(void)
 {
-    snprintf(g_help_info_str, sizeof(g_help_info_str), 
+    snprintf(g_crypto_tool_help_info, sizeof(g_crypto_tool_help_info), 
         "\n****************************************************************************************\n"
         "Parameter Instruction:\n"
         "\t-a\t--algo\t\tCrypto Algorithm Name[Required arg]\n"
@@ -113,7 +113,7 @@ void help_intro(void)
         "\tDecrypt: ./crypto_tool -a aes256 -e ./encrypt -d ./decrypt -k ./etc/ -f hscy.img"
         "\n****************************************************************************************\n"
     );
-    APP_LOG_INFO("%s", g_help_info_str);
+    APP_LOG_INFO("%s", g_crypto_tool_help_info);
 }
 
 /************************************************************************* 
@@ -133,13 +133,13 @@ int crypto_parse_command_line(int argc, char **argv)
     if (NULL == argv || 1 == argc)
     {
         APP_LOG_ERROR("Parameter is wrong[argc: %d][argv: %p]", argc, argv);
-        help_intro();
+        crypto_tool_help_intro();
         return -1;
     }
 
     while (1) 
     {
-        ch = getopt_long_only(argc, argv, "o:e:d:k:f:a:h", g_long_options, NULL);
+        ch = getopt_long_only(argc, argv, "o:e:d:k:f:a:h", g_crypto_options, NULL);
         if (ch == -1)
         {
             break;
@@ -180,7 +180,7 @@ int crypto_parse_command_line(int argc, char **argv)
 
     if (ret != 0)
     {
-        help_intro();
+        crypto_tool_help_intro();
     }
 
     return ret;
@@ -201,7 +201,7 @@ int check_required_crypto_param(void)
         0 == strcmp(g_crypto_algo_name, ""))
     {
         APP_LOG_ERROR("-a algo, -f filename and -k key are required to decrypt file");
-        help_intro();
+        crypto_tool_help_intro();
         return -1;
     }
 

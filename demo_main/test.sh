@@ -29,3 +29,8 @@ check_all_md5()
 check_all_md5
 
 echo "Over"
+
+
+# ls -l signature.pem | awk '{ print $5 }'
+# printf "%08x" 3280 | xxd -r -p > size.txt
+# cat size.txt signature.pem hscy.img > final.img

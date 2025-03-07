@@ -16,6 +16,7 @@
 #include "logger.h"
 #include "crypto_aes256.h"
 #include "crypto_macro.h"
+#include "common_macro.h"
 
 #define AES256_KEY_FLIENAME "aes256.key"
 
@@ -218,24 +219,9 @@ int aes256_encrypt_specified_mmap_addr(const uint8_t *addr,
     ret = 0;
 
 CLEAN:
-    if (ciphertext != NULL)
-    {
-        free(ciphertext);
-        ciphertext = NULL;
-    }
-
-    if (fp != NULL)
-    {
-        fclose(fp);
-        fp = NULL;
-    }
-
-    if (ctx != NULL)
-    {
-        EVP_CIPHER_CTX_free(ctx);
-        ctx = NULL;
-    }
-
+    FREE_VARIATE_WITH_FUNC(ciphertext, free);
+    FREE_VARIATE_WITH_FUNC(fp, fclose);
+    FREE_VARIATE_WITH_FUNC(ctx, EVP_CIPHER_CTX_free);
     return ret;
 }
 
@@ -346,23 +332,8 @@ int aes256_decrypt_specified_mmap_addr(const uint8_t *addr,
 
     /* 清理 */
 CLEAN:
-    if (plaintext != NULL)
-    {
-        free(plaintext);
-        plaintext = NULL;
-    }
-
-    if (fp != NULL)
-    {
-        fclose(fp);
-        fp = NULL;
-    }
-
-    if (ctx != NULL)
-    {
-        EVP_CIPHER_CTX_free(ctx);
-        ctx = NULL;
-    }
-
+    FREE_VARIATE_WITH_FUNC(plaintext, free);
+    FREE_VARIATE_WITH_FUNC(fp, fclose);
+    FREE_VARIATE_WITH_FUNC(ctx, EVP_CIPHER_CTX_free);
     return ret;
 }

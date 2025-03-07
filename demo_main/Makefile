@@ -16,7 +16,7 @@ else
 	CXXFLAGS += -g
 endif
 
-TARGETS				:= crypto_tool ffmpeg_tool test_code tool_center
+TARGETS				:= crypto_tool ffmpeg_tool test_code tool_center sign_tool
 
 CFLAGS	+= -Iinc -I../common_inc
 
@@ -40,17 +40,24 @@ TOOL_CENTER_OBJS	:= $(TOOL_CENTER_SRCS:src/%.c=obj/%.o)
 TOOL_CENTER_LDFLAGS += -rdynamic -no-pie -L../thd_lib/x86 -L../demo_logger/lib/x86 -L../demo_common/lib/x86
 TOOL_CENTER			:= tool_center
 
+SIGN_TOOL_SRCS		:= src/sign_tool.c
+SIGN_TOOL_OBJS		:= $(SIGN_TOOL_SRCS:src/%.c=obj/%.o)
+SIGN_TOOL_LDFLAGS += -rdynamic -no-pie -L../thd_lib/x86 -L../demo_crypto/lib/x86 -L../demo_logger/lib/x86 -L../demo_common/lib/x86
+SIGN_TOOL			:= sign_tool
+
 # 添加需要链接的库文件
 ifeq ($(LIB_TYPE),dynamic)
 	CRYPTO_TOOL_LDLIBS	+= -lcustom_crypto -llogger -lcommon -lcjson -lssl -lcrypto -lm -lpthread -lstdc++
 	FFMPEG_TOOL_LDLIBS	+= -llogger -lcommon -lcjson -lm -lpthread -lstdc++
 	TEST_CODE_LDLIBS	+= -llogger -lcommon -lcjson -lm -lpthread -lstdc++
 	TOOL_CENTER_LDLIBS	+= -llogger -lcommon -lcjson -lm -lreadline -lhistory -lpthread -lstdc++
+	SIGN_TOOL_LDLIBS	+= -lcustom_crypto -llogger -lcommon -lcjson -lssl -lcrypto -lm -lpthread -lstdc++
 else
 	CRYPTO_TOOL_LDLIBS	+= -Wl,-Bstatic -lcustom_crypto -llogger -lcommon -lcjson -Wl,-Bdynamic -lssl -lcrypto -lm -lpthread -lstdc++
 	FFMPEG_TOOL_LDLIBS	+= -Wl,-Bstatic -llogger -lcommon -lcjson -Wl,-Bdynamic -lm -lpthread -lstdc++
 	TEST_CODE_LDLIBS	+= -Wl,-Bstatic -llogger -lcommon -lcjson -Wl,-Bdynamic -lm -lpthread -lstdc++
 	TOOL_CENTER_LDLIBS	+= -Wl,-Bstatic -llogger -lcommon -lcjson -Wl,-Bdynamic -lm -lreadline -lhistory -lpthread -lstdc++
+	SIGN_TOOL_LDLIBS	+= -Wl,-Bstatic -lcustom_crypto -llogger -lcommon -lcjson -Wl,-Bdynamic -lssl -lcrypto -lm -lpthread -lstdc++
 endif
 
 .PHONY : all clean
@@ -79,5 +86,9 @@ tool_center: $(TOOL_CENTER_OBJS)
 #	@echo "$(CC) $^"
 	$(CC) -o $@ $^ $(TOOL_CENTER_LDFLAGS) $(TOOL_CENTER_LDLIBS)
 
+sign_tool: $(SIGN_TOOL_OBJS)
+#	@echo "$(CC) $^"
+	$(CC) -o $@ $^ $(SIGN_TOOL_LDFLAGS) $(SIGN_TOOL_LDLIBS)
+
 clean :
-	@$(RM) $(CRYPTO_TOOL_OBJS) $(FFMPEG_TOOL_OBJS) $(TEST_CODE_OBJS) $(TOOL_CENTER_OBJS) $(CRYPTO_TOOL) $(FFMPEG_TOOL) $(TEST_CODE) $(TOOL_CENTER)
+	@$(RM) $(CRYPTO_TOOL_OBJS) $(FFMPEG_TOOL_OBJS) $(TEST_CODE_OBJS) $(TOOL_CENTER_OBJS) $(SIGN_TOOL_OBJS) $(CRYPTO_TOOL) $(FFMPEG_TOOL) $(TEST_CODE) $(TOOL_CENTER) $(SIGN_TOOL)

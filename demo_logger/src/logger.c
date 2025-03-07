@@ -157,10 +157,10 @@ static char *s_byte_log_buff = NULL;                /* BYTE LOG BUFFER */
 static char *s_suffix_log_buff = NULL;              /* LOG SUFFIX BUFFER */
 static char *s_whole_log_buff = NULL;               /* LOG PREFIX + SUFFIX BUFFER */
 
-static char *s_log_io_buf1 = NULL;                  /* LOG IO BUFFER BLOCK 1 */
-static char *s_log_io_buf2 = NULL;                  /* LOG IO BUFFER BLOCK 2 */
-static char *s_read_bufptr = NULL;                  /* READ BUFFER POINTER */
-static char *s_write_bufptr = NULL;                 /* WRITE BUFFER POINTER */
+// static char *s_log_io_buf1 = NULL;                  /* LOG IO BUFFER BLOCK 1 */
+// static char *s_log_io_buf2 = NULL;                  /* LOG IO BUFFER BLOCK 2 */
+// static char *s_read_bufptr = NULL;                  /* READ BUFFER POINTER */
+// static char *s_write_bufptr = NULL;                 /* WRITE BUFFER POINTER */
 
 static char s_system_cmdstr[CMD_SIZE] = {0};        /* 系统命令行字符串 */
 static MAIN_LOOP_FLAG_T s_loop_flag;                /* 控制主流程循环 */
@@ -245,12 +245,7 @@ void destroy_loop_flag(void)
 *************************************************************************/
 void clean_logger_buffer(void)
 {
-    if (s_file_log_buf != NULL)
-    {
-        free(s_file_log_buf);
-        s_file_log_buf = NULL;
-    }
-
+    FREE_VARIATE_WITH_FUNC(s_file_log_buf, free);
     return ;
 }
 
@@ -973,8 +968,7 @@ void backtrace_to_screen(void)
         fprintf(stdout, "------ %s\n", strings[i]);
     }
 
-    free(strings);
-    strings = NULL;
+    FREE_VARIATE_WITH_FUNC(strings, free);
     return ;
 }
 
@@ -1014,8 +1008,7 @@ void backtrace_to_buf(void)
         wrt_all_log(text, FILE_AND_SCREEN, LOG_ERR, NULL);
     }
 
-    free(strings);
-    strings = NULL;
+    FREE_VARIATE_WITH_FUNC(strings, free);
 
     /* Flush buffer out before EXIT() */
     flush_log_buffer(0);
@@ -1053,18 +1046,8 @@ void print_backtrace(int signo)
 
     backtrace_to_buf();
 
-    if (log_file_ptr != NULL)
-    {
-        fclose(log_file_ptr);
-        log_file_ptr = NULL;
-    }
-
-    if (err_log_file_ptr != NULL)
-    {
-        fclose(err_log_file_ptr);
-        err_log_file_ptr = NULL;
-    }
-
+    FREE_VARIATE_WITH_FUNC(log_file_ptr, fclose);
+    FREE_VARIATE_WITH_FUNC(err_log_file_ptr, fclose);
     exit(EXIT_SUCCESS);
 }
 
@@ -1194,8 +1177,7 @@ int parse_conf_json_content(char *content, unsigned int content_len, LOG_CONF_IT
         fprintf(stdout, "Assign CONF item failed\n");
     }
 
-    cJSON_Delete(root);
-    root = NULL;
+    FREE_VARIATE_WITH_FUNC(root, cJSON_Delete);
     return 0;
 }
 
@@ -1750,12 +1732,7 @@ void *async_log_process_thread(void *arg)
         }
     }
 
-    if (s_async_tmp_node.buf != NULL)
-    {
-        free(s_async_tmp_node.buf);
-        s_async_tmp_node.buf = NULL;
-    }
-
+    FREE_VARIATE_WITH_FUNC(s_async_tmp_node.buf, free);
     return NULL;
 }
 

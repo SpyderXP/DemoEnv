@@ -33,6 +33,13 @@ do                                                                              
          __FILE__, __LINE__, sec, usec);                                        \
 } while (0);
 
+#define FREE_VARIATE_WITH_FUNC(variate, func)                                   \
+if (variate != NULL)                                                            \
+{                                                                               \
+    func(variate);                                                              \
+    variate = NULL;                                                             \
+}                                                                               \
+
 /************************************************************************* 
 *  负责人    : xupeng
 *  创建日期  : 20250117

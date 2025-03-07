@@ -19,6 +19,7 @@ extern "C" {
 #define PATHNAME_LEN            256                     /* 文件路径最大长度 */
 #define FULL_FILENAME_LEN       512                     /* 文件路径 + 文件名 最大长度 */
 #define CRYPTO_ALGO_NAMELEN     32                      /* 加密/解密算法名称最大长度 */
+#define CRYPTO_PASSWD_SIZE      32                      /* 通用密码最大长度 */
 
 #ifdef __cplusplus
 }

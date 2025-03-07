@@ -16,6 +16,7 @@
 #include "logger.h"
 #include "crypto_rsa1024.h"
 #include "crypto_macro.h"
+#include "common_macro.h"
 
 #define RSA1024_PUBKEY_FLIENAME "rsa1024_pub.key"
 #define RSA1024_PRIVKEY_FLIENAME "rsa1024_priv.key"
@@ -63,6 +64,12 @@ int rsa1024_crypto_key_generator(const char *key_path)
     /* Write public key to file */
     snprintf(priv_key, sizeof(priv_key), "%s"RSA1024_PRIVKEY_FLIENAME, key_path);
     fp = fopen(priv_key, "wb");
+    if (NULL == fp)
+    {
+        APP_LOG_ERROR("fopen failed[file: %s]", priv_key);
+        goto CLEAN;
+    }
+
     if (PEM_write_RSAPrivateKey(fp, rsa, NULL, NULL, 0, NULL, NULL) != 1)
     {
         APP_LOG_ERROR("Failed to write private key to file");
@@ -75,6 +82,12 @@ int rsa1024_crypto_key_generator(const char *key_path)
     /* Write public key to file */
     snprintf(pub_key, sizeof(pub_key), "%s"RSA1024_PUBKEY_FLIENAME, key_path);
     fp = fopen(pub_key, "wb");
+    if (NULL == fp)
+    {
+        APP_LOG_ERROR("fopen failed[file: %s]", pub_key);
+        goto CLEAN;
+    }
+
     if (PEM_write_RSA_PUBKEY(fp, rsa) != 1)
     {
         APP_LOG_ERROR("Failed to write public key to file");
@@ -84,15 +97,9 @@ int rsa1024_crypto_key_generator(const char *key_path)
     ret = 0;
 
 CLEAN: 
-    if (fp != NULL)
-    {
-        fclose(fp);
-        fp = NULL;
-    }
-
-    RSA_free(rsa);
-    BN_free(bne);
-
+    FREE_VARIATE_WITH_FUNC(fp, fclose);
+    FREE_VARIATE_WITH_FUNC(rsa, RSA_free);
+    FREE_VARIATE_WITH_FUNC(bne, BN_free);
     return ret;
 }
 
@@ -182,30 +189,10 @@ int rsa1024_encrypt_specified_mmap_addr(const uint8_t *addr,
     ret = 0;
 
 CLEAN: 
-    if (ciphertext != NULL)
-    {
-        free(ciphertext);
-        ciphertext = NULL;
-    }
-
-    if(outfile != NULL)
-    {
-        fclose(outfile);
-        outfile = NULL;
-    }
-
-    if (pubkeyfile != NULL)
-    {
-        fclose(pubkeyfile);
-        pubkeyfile = NULL;
-    }
-
-    if (pubkey != NULL)
-    {
-        RSA_free(pubkey);
-        pubkey = NULL;
-    }
-
+    FREE_VARIATE_WITH_FUNC(ciphertext, free);
+    FREE_VARIATE_WITH_FUNC(outfile, fclose);
+    FREE_VARIATE_WITH_FUNC(pubkeyfile, fclose);
+    FREE_VARIATE_WITH_FUNC(pubkey, RSA_free);
     return ret;
 }
 
@@ -295,29 +282,9 @@ int rsa1024_decrypt_specified_mmap_addr(const uint8_t *addr,
     ret = 0;
 
 CLEAN: 
-    if (outfile != NULL)
-    {
-        fclose(outfile);
-        outfile = NULL;
-    }
-
-    if (privkeyfile != NULL)
-    {
-        fclose(privkeyfile);
-        privkeyfile = NULL;
-    }
-
-    if (plaintext != NULL)
-    {
-        free(plaintext);
-        plaintext = NULL;
-    }
-
-    if (privkey != NULL)
-    {
-        RSA_free(privkey);
-        privkey = NULL;
-    }
-
+    FREE_VARIATE_WITH_FUNC(outfile, fclose);
+    FREE_VARIATE_WITH_FUNC(privkeyfile, fclose);
+    FREE_VARIATE_WITH_FUNC(plaintext, free);
+    FREE_VARIATE_WITH_FUNC(privkey, RSA_free);
     return ret;
 }
