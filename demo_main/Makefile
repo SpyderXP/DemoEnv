@@ -1,9 +1,14 @@
-# CC				:= arm-linux-gnueabihf-gcc
-# CXX				:= arm-linux-gnueabihf-g++
-# AR				:= arm-linux-gnueabihf-ar
-CC				:= gcc
-CXX				:= g++
-AR				:= ar
+ifeq ($(ARCH), arm)
+	CC			:= arm-linux-gnueabihf-gcc
+	CXX			:= arm-linux-gnueabihf-g++
+	AR			:= arm-linux-gnueabihf-ar
+	LIB_DIR		:= arm
+else
+	CC			:= gcc
+	CXX			:= g++
+	AR			:= ar
+	LIB_DIR		:= x86
+endif
 RM				:= rm -rf
 CFLAGS			:= -std=gnu99 -Wall -funwind-tables
 CXXFLAGS		:= -std=c++11 -Wall -funwind-tables
@@ -22,27 +27,27 @@ CFLAGS	+= -Iinc -I../common_inc
 
 CRYPTO_TOOL_SRCS	:= src/crypto_tool.c
 CRYPTO_TOOL_OBJS	:= $(CRYPTO_TOOL_SRCS:src/%.c=obj/%.o)
-CRYPTO_TOOL_LDFLAGS += -rdynamic -no-pie -L../thd_lib/x86 -L../demo_crypto/lib/x86 -L../demo_logger/lib/x86 -L../demo_common/lib/x86
+CRYPTO_TOOL_LDFLAGS += -rdynamic -no-pie -L../thd_lib/$(LIB_DIR) -L../demo_crypto/lib/$(LIB_DIR) -L../demo_logger/lib/$(LIB_DIR) -L../demo_common/lib/$(LIB_DIR)
 CRYPTO_TOOL			:= crypto_tool
 
 FFMPEG_TOOL_SRCS	:= src/ffmpeg_tool.c
 FFMPEG_TOOL_OBJS	:= $(FFMPEG_TOOL_SRCS:src/%.c=obj/%.o)
-FFMPEG_TOOL_LDFLAGS += -rdynamic -no-pie -L../thd_lib/x86 -L../demo_logger/lib/x86 -L../demo_common/lib/x86
+FFMPEG_TOOL_LDFLAGS += -rdynamic -no-pie -L../thd_lib/$(LIB_DIR) -L../demo_logger/lib/$(LIB_DIR) -L../demo_common/lib/$(LIB_DIR)
 FFMPEG_TOOL			:= ffmpeg_tool
 
 TEST_CODE_SRCS		:= src/common_interface_test.c
 TEST_CODE_OBJS		:= $(TEST_CODE_SRCS:src/%.c=obj/%.o)
-TEST_CODE_LDFLAGS += -rdynamic -no-pie -L../thd_lib/x86 -L../demo_logger/lib/x86 -L../demo_common/lib/x86
+TEST_CODE_LDFLAGS 	+= -rdynamic -no-pie -L../thd_lib/$(LIB_DIR) -L../demo_logger/lib/$(LIB_DIR) -L../demo_common/lib/$(LIB_DIR)
 TEST_CODE			:= test_code
 
 TOOL_CENTER_SRCS	:= src/tool_center.c
 TOOL_CENTER_OBJS	:= $(TOOL_CENTER_SRCS:src/%.c=obj/%.o)
-TOOL_CENTER_LDFLAGS += -rdynamic -no-pie -L../thd_lib/x86 -L../demo_logger/lib/x86 -L../demo_common/lib/x86
+TOOL_CENTER_LDFLAGS += -rdynamic -no-pie -L../thd_lib/$(LIB_DIR) -L../demo_logger/lib/$(LIB_DIR) -L../demo_common/lib/$(LIB_DIR)
 TOOL_CENTER			:= tool_center
 
 SIGN_TOOL_SRCS		:= src/sign_tool.c
 SIGN_TOOL_OBJS		:= $(SIGN_TOOL_SRCS:src/%.c=obj/%.o)
-SIGN_TOOL_LDFLAGS += -rdynamic -no-pie -L../thd_lib/x86 -L../demo_crypto/lib/x86 -L../demo_logger/lib/x86 -L../demo_common/lib/x86
+SIGN_TOOL_LDFLAGS 	+= -rdynamic -no-pie -L../thd_lib/$(LIB_DIR) -L../demo_crypto/lib/$(LIB_DIR) -L../demo_logger/lib/$(LIB_DIR) -L../demo_common/lib/$(LIB_DIR)
 SIGN_TOOL			:= sign_tool
 
 # 添加需要链接的库文件

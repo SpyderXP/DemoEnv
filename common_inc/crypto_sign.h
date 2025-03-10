@@ -19,6 +19,7 @@ extern "C" {
 *  创建日期  : 20250304
 *  函数功能  : 生成数字签名文件(RSA普通签名算法).
 *  输入参数  : key_file - 私钥文件.
+*             passwd - 私钥密码.
 *             data_file - 数据文件.
 *             cert_file - 证书文件.
 *             signed_file - 签名文件.
@@ -26,7 +27,8 @@ extern "C" {
 *  返回值    : 0 - 成功  -1 - 失败.
 *  其他     : 普通签名算法只包含签名值和签名算法，不包含证书及证书链等信息.
 *************************************************************************/
-int generate_rsa_signature(const char* key_file, const char* data_file, const char *cert_file, const char* signed_file);
+int generate_rsa_signature(const char *key_file, const char *passwd, const char *data_file, 
+  const char *cert_file, const char *signed_file);
 
 /************************************************************************* 
 *  负责人    : xupeng
@@ -46,6 +48,7 @@ int verify_rsa_signature(const char *cert_file, const char *data_file, const cha
 *  创建日期  : 20250304
 *  函数功能  : 生成数字签名文件(CMS).
 *  输入参数  : key_file - 私钥文件.
+*             passwd - 私钥密码.
 *             data_file - 数据文件.
 *             cert_file - 证书文件.
 *             signed_file - 签名文件.
@@ -53,7 +56,8 @@ int verify_rsa_signature(const char *cert_file, const char *data_file, const cha
 *  返回值    : 0 - 成功  -1 - 失败.
 *  其他     : CMS 额外封装了证书、证书链、时间戳等信息.
 *************************************************************************/
-int generate_cms_signature(const char *key_file, const char *data_file, const char *cert_file, const char *signed_file);
+int generate_cms_signature(const char *key_file, const char *passwd, const char *data_file, 
+  const char *cert_file, const char *signed_file);
 
 /************************************************************************* 
 *  负责人    : xupeng
@@ -73,6 +77,7 @@ int verify_cms_signature(const char *cert_file, const char *data_file, const cha
 *  创建日期  : 20250304
 *  函数功能  : 生成数字签名文件(PKCS #7).
 *  输入参数  : key_file - 私钥文件.
+*             passwd - 私钥密码.
 *             data_file - 数据文件.
 *             cert_file - 证书文件.
 *             signed_file - 签名文件.
@@ -80,7 +85,8 @@ int verify_cms_signature(const char *cert_file, const char *data_file, const cha
 *  返回值    : 0 - 成功  -1 - 失败.
 *  其他     : PKCS #7 额外封装了证书、证书链、时间戳等信息.
 *************************************************************************/
-int generate_pkcs7_signature(const char *key_file, const char *data_file, const char *cert_file, const char *signed_file);
+int generate_pkcs7_signature(const char *key_file, const char *passwd, const char *data_file, 
+  const char *cert_file, const char *signed_file);
 
 /************************************************************************* 
 *  负责人    : xupeng

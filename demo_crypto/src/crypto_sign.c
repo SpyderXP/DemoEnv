@@ -25,6 +25,7 @@
 #define HELP_INFO_STR_SIZE 2048
 
 typedef int (*SIGN_GENERATE_FUNC)(const char *key_file, 
+                                  const char *passwd, 
                                   const char *data_file, 
                                   const char *cert_file, 
                                   const char *signed_file);
@@ -198,13 +199,22 @@ int sign_parse_command_line(int argc, char **argv)
 *************************************************************************/
 int password_callback(char *buf, int size, int rwflag, void *data)
 {
-    if (0 == strcmp("", g_priv_key_passwd))
+    char *passwd = NULL;
+
+    if (NULL == data)
+    {
+        APP_LOG_ERROR("data is NULL");
+        return 0;
+    }
+
+    passwd = (char *)data;
+    if (0 == strcmp("", (char *)passwd))
     {
         return 0;
     }
 
-    snprintf(buf, size, "%s", g_priv_key_passwd);
-    return strlen(g_priv_key_passwd);
+    snprintf(buf, size, "%s", passwd);
+    return strlen(passwd);
 }
 
 /************************************************************************* 
@@ -212,6 +222,7 @@ int password_callback(char *buf, int size, int rwflag, void *data)
 *  创建日期  : 20250304
 *  函数功能  : 生成数字签名文件(RSA普通签名算法).
 *  输入参数  : key_file - 私钥文件.
+*             passwd - 私钥密码.
 *             data_file - 数据文件.
 *             cert_file - 证书文件.
 *             signed_file - 签名文件.
@@ -219,7 +230,8 @@ int password_callback(char *buf, int size, int rwflag, void *data)
 *  返回值    : 0 - 成功  -1 - 失败.
 *  其他     : 普通签名算法只包含签名值和签名算法，不包含证书及证书链等信息.
 *************************************************************************/
-int generate_rsa_signature(const char* key_file, const char* data_file, const char *cert_file, const char* signed_file)
+int generate_rsa_signature(const char *key_file, const char *passwd, const char *data_file, 
+    const char *cert_file, const char *signed_file)
 {
     int ret = -1;
     FILE *fp = NULL;
@@ -235,7 +247,8 @@ int generate_rsa_signature(const char* key_file, const char* data_file, const ch
 
     if (NULL == key_file || NULL == data_file || NULL == signed_file)
     {
-        APP_LOG_ERROR("Parameter is NULL[ ]");
+        APP_LOG_ERROR("Parameter is NULL[key_file: %p][data_file: %p][signed_file: %p]", 
+            key_file, data_file, signed_file);
         return -1;
     }
 
@@ -247,7 +260,7 @@ int generate_rsa_signature(const char* key_file, const char* data_file, const ch
         goto CLEAN;
     }
 
-    rsa = PEM_read_RSAPrivateKey(fp, NULL, password_callback, NULL);
+    rsa = PEM_read_RSAPrivateKey(fp, NULL, password_callback, (void *)passwd);
     if (NULL == rsa)
     {
         APP_LOG_ERROR("Failed to get rsa[file: %s]", key_file);
@@ -368,7 +381,8 @@ int verify_rsa_signature(const char *cert_file, const char *data_file, const cha
 
     if (NULL == cert_file || NULL == signed_file || NULL == data_file)
     {
-        APP_LOG_ERROR("Parameter is NULL[cert_file: %p][signed_file: %p][data_file: %p]", cert_file, signed_file, data_file);
+        APP_LOG_ERROR("Parameter is NULL[cert_file: %p][signed_file: %p][data_file: %p]", 
+            cert_file, signed_file, data_file);
         return  -1;
     }
 
@@ -489,6 +503,7 @@ CLEAN:
 *  创建日期  : 20250304
 *  函数功能  : 生成数字签名文件(CMS).
 *  输入参数  : key_file - 私钥文件.
+*             passwd - 私钥密码.
 *             data_file - 数据文件.
 *             cert_file - 证书文件.
 *             signed_file - 签名文件.
@@ -496,16 +511,17 @@ CLEAN:
 *  返回值    : 0 - 成功  -1 - 失败.
 *  其他     : CMS 额外封装了证书、证书链、时间戳等信息.
 *************************************************************************/
-int generate_cms_signature(const char *key_file, const char *data_file, const char *cert_file, const char *signed_file)
+int generate_cms_signature(const char *key_file, const char *passwd, const char *data_file, 
+    const char *cert_file, const char *signed_file)
 {
     int ret = -1;
-    BIO* data_bio = NULL;
+    BIO *data_bio = NULL;
     FILE *cert = NULL;
     FILE *key = NULL;
     X509 *x509 = NULL;
     EVP_PKEY *pkey = NULL;
     CMS_ContentInfo *cms = NULL;
-    BIO* signature_bio = NULL;
+    BIO *signature_bio = NULL;
 
     if (NULL == data_file || NULL == cert_file || NULL == key_file || NULL == signed_file)
     {
@@ -542,7 +558,7 @@ int generate_cms_signature(const char *key_file, const char *data_file, const ch
         goto CLEAN;
     }
 
-    pkey = PEM_read_PrivateKey(key, NULL, password_callback, NULL);
+    pkey = PEM_read_PrivateKey(key, NULL, password_callback, (void *)passwd);
     if (NULL == pkey)
     {
         APP_LOG_ERROR("PEM_read_PrivateKey failed");
@@ -694,6 +710,7 @@ CLEAN:
 *  创建日期  : 20250304
 *  函数功能  : 生成数字签名文件(PKCS #7).
 *  输入参数  : key_file - 私钥文件.
+*             passwd - 私钥密码.
 *             data_file - 数据文件.
 *             cert_file - 证书文件.
 *             signed_file - 签名文件.
@@ -701,7 +718,8 @@ CLEAN:
 *  返回值    : 0 - 成功  -1 - 失败.
 *  其他     : PKCS #7 额外封装了证书、证书链、时间戳等信息.
 *************************************************************************/
-int generate_pkcs7_signature(const char *key_file, const char *data_file, const char *cert_file, const char *signed_file)
+int generate_pkcs7_signature(const char *key_file, const char *passwd, const char *data_file, 
+    const char *cert_file, const char *signed_file)
 {
     int ret = -1;
     BIO *bio = NULL;
@@ -752,7 +770,7 @@ int generate_pkcs7_signature(const char *key_file, const char *data_file, const 
         goto CLEAN;
     }
 
-    key = PEM_read_PrivateKey(fp, NULL, password_callback, NULL);
+    key = PEM_read_PrivateKey(fp, NULL, password_callback, (void *)passwd);
     if (NULL == key)
     {
         APP_LOG_ERROR("PEM_read_PrivateKey failed");
@@ -1020,6 +1038,7 @@ void sign_tool_main(int argc, char **argv)
                 g_sign_func_set[i].generate != NULL)
             {
                 if (g_sign_func_set[i].generate(g_key_file_name, 
+                                                g_priv_key_passwd, 
                                                 g_data_file_name, 
                                                 g_cert_file_name, 
                                                 g_signed_file_name) != 0)

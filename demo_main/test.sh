@@ -26,11 +26,10 @@ check_all_md5()
     fi
 }
 
-check_all_md5
+# check_all_md5
+
+sig_size=`ls -l sig.pem | awk '{ print $5 }'`
+printf "%08x" $sig_size | xxd -r -p > size.txt
+cat size.txt sig.pem data.txt > final.img
 
 echo "Over"
-
-
-# ls -l signature.pem | awk '{ print $5 }'
-# printf "%08x" 3280 | xxd -r -p > size.txt
-# cat size.txt signature.pem hscy.img > final.img
