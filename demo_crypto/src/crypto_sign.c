@@ -220,6 +220,83 @@ int password_callback(char *buf, int size, int rwflag, void *data)
 /************************************************************************* 
 *  负责人    : xupeng
 *  创建日期  : 20250304
+*  函数功能  : RSA签名处理.
+*  输入参数  : memblock - 内存块 data segment + hash + sign.
+*             fp - 数据文件指针.
+*             rsa - RSA私钥信息.
+*             data_size - 数据文件长度.
+*  输出参数  : 无.
+*  返回值    : 公钥信息.
+*  其他     : 无.
+*************************************************************************/
+uint32_t openssl_rsa_signature_process(uint8_t *memblock, FILE *fp, RSA *rsa, long data_size)
+{
+    EVP_MD_CTX *ctx = NULL;
+    uint8_t *hash = NULL;
+    uint32_t hash_len = 0;
+    uint8_t *sign = NULL;
+    uint32_t sign_len = 0;
+    long read_size = 0;
+
+    if (NULL == memblock || NULL == fp || NULL == rsa)
+    {
+        APP_LOG_ERROR("Parameter is NULL[memblock: %p][fp: %p][rsa: %p]", memblock, fp, rsa);
+        return 0;
+    }
+
+    ctx = EVP_MD_CTX_create();
+    if (NULL == ctx)
+    {
+        APP_LOG_ERROR("EVP_MD_CTX_create failed");
+        return 0;
+    }
+
+    if (EVP_DigestInit(ctx, EVP_sha256()) != 1)
+    {
+        APP_LOG_ERROR("EVP_DigestInit with EVP_sha256 failed");
+        return 0;
+    }
+
+    while (read_size + 256 < data_size)
+    {
+        fread(memblock, 256, 1, fp);
+        if (EVP_DigestUpdate(ctx, memblock, 256) != 1)
+        {
+            APP_LOG_ERROR("EVP_DigestUpdate failed");
+            EVP_MD_CTX_destroy(ctx);
+            return 0;
+        }
+        read_size += 256;
+    }
+
+    fread(memblock, data_size - read_size, 1, fp);
+    if (EVP_DigestUpdate(ctx, memblock, data_size - read_size) != 1)
+    {
+        APP_LOG_ERROR("EVP_DigestUpdate failed");
+        EVP_MD_CTX_destroy(ctx);
+        return 0;
+    }
+
+    /* 计算哈希 */
+    hash = memblock + 256;
+    if (EVP_DigestFinal(ctx, hash, &hash_len) != 1)
+    {
+        APP_LOG_ERROR("EVP_DigestFinal failed");
+        EVP_MD_CTX_destroy(ctx);
+        return 0;
+    }
+
+    EVP_MD_CTX_destroy(ctx);
+
+    /* 签名哈希 */
+    sign = memblock + 256 + EVP_MAX_MD_SIZE;
+    RSA_sign(NID_sha256, hash, hash_len, sign, &sign_len, rsa);
+    return sign_len;
+}
+
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20250304
 *  函数功能  : 生成数字签名文件(RSA普通签名算法).
 *  输入参数  : key_file - 私钥文件.
 *             passwd - 私钥密码.
@@ -236,13 +313,8 @@ int generate_rsa_signature(const char *key_file, const char *passwd, const char 
     int ret = -1;
     FILE *fp = NULL;
     RSA *rsa = NULL;
-    EVP_MD_CTX *ctx = NULL;
-    uint8_t *data = NULL;
-    long read_size = 0;
+    uint8_t *memblock = NULL;
     long data_size = 0;
-    uint8_t *hash = NULL;
-    uint32_t hash_len = 0;
-    uint8_t *sign = NULL;
     uint32_t sign_len = 0;
 
     if (NULL == key_file || NULL == data_file || NULL == signed_file)
@@ -283,58 +355,16 @@ int generate_rsa_signature(const char *key_file, const char *passwd, const char 
     rewind(fp);
 
     /* data segment + hash + sign */
-    data = (uint8_t *)calloc(1, 256 + EVP_MAX_MD_SIZE + RSA_size(rsa));
-    if (NULL == data)
+    memblock = (uint8_t *)calloc(1, 256 + EVP_MAX_MD_SIZE + RSA_size(rsa));
+    if (NULL == memblock)
     {
         APP_LOG_ERROR("calloc failed");
         goto CLEAN;
     }
 
-    ctx = EVP_MD_CTX_create();
-    if (NULL == ctx)
-    {
-        APP_LOG_ERROR("EVP_MD_CTX_create failed");
-        goto CLEAN;
-    }
-
-    if (EVP_DigestInit(ctx, EVP_sha256()) != 1)
-    {
-        APP_LOG_ERROR("EVP_DigestInit with EVP_sha256 failed");
-        goto CLEAN;
-    }
-
-    while (read_size + 256 < data_size)
-    {
-        fread(data, 256, 1, fp);
-        if (EVP_DigestUpdate(ctx, data, 256) != 1)
-        {
-            APP_LOG_ERROR("EVP_DigestUpdate failed");
-            goto CLEAN;
-        }
-        read_size += 256;
-    }
-
-    fread(data, data_size - read_size, 1, fp);
-    if (EVP_DigestUpdate(ctx, data, data_size - read_size) != 1)
-    {
-        APP_LOG_ERROR("EVP_DigestUpdate failed");
-        goto CLEAN;
-    }
-
+    sign_len = openssl_rsa_signature_process(memblock, fp, rsa, data_size);
     fclose(fp);
     fp = NULL;
-
-    /* 计算哈希 */
-    hash = data + 256;
-    if (EVP_DigestFinal(ctx, hash, &hash_len) != 1)
-    {
-        APP_LOG_ERROR("EVP_DigestFinal failed");
-        goto CLEAN;
-    }
-
-    /* 签名哈希 */
-    sign = data + 256 + EVP_MAX_MD_SIZE;
-    RSA_sign(NID_sha256, hash, hash_len, sign, &sign_len, rsa);
 
     /* 保存签名 */
     fp = fopen(signed_file, "wb");
@@ -344,15 +374,66 @@ int generate_rsa_signature(const char *key_file, const char *passwd, const char 
         goto CLEAN;
     }
 
-    fwrite(sign, 1, sign_len, fp);
+    fwrite(memblock + 256 + EVP_MAX_MD_SIZE, 1, sign_len, fp);
     ret = 0;
 
 CLEAN: 
     FREE_VARIATE_WITH_FUNC(fp, fclose);
     FREE_VARIATE_WITH_FUNC(rsa, RSA_free);
-    FREE_VARIATE_WITH_FUNC(ctx, EVP_MD_CTX_destroy);
-    FREE_VARIATE_WITH_FUNC(data, free);
+    FREE_VARIATE_WITH_FUNC(memblock, free);
     return ret;
+}
+
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20250304
+*  函数功能  : 通过证书文件获取RSA公钥.
+*  输入参数  : cert_file - 证书文件(公钥).
+*  输出参数  : 无.
+*  返回值    : 公钥信息.
+*  其他     : 无.
+*************************************************************************/
+EVP_PKEY *get_rsa_pubkey(const char *cert_file)
+{
+    EVP_PKEY *pubkey = NULL;
+    FILE *fp = NULL;
+    X509 *cert = NULL;
+
+    if (NULL == cert_file)
+    {
+        APP_LOG_ERROR("cert_file is NULL");
+        return NULL;
+    }
+
+    fp = fopen(cert_file, "rb");
+    if (NULL == fp)
+    {
+        APP_LOG_ERROR("fopen failed[file: %s]", cert_file);
+        return NULL;
+    }
+
+    cert = PEM_read_X509(fp, NULL, NULL, NULL);
+    if (NULL == cert)
+    {
+        APP_LOG_ERROR("PEM_read_X509 failed[file: %s]", cert_file);
+        fclose(fp);
+        fp = NULL;
+        return NULL;
+    }
+
+    fclose(fp);
+    fp = NULL;
+
+    pubkey = X509_get_pubkey(cert);
+    if (NULL == pubkey)
+    {
+        APP_LOG_ERROR("X509_get_pubkey failed");
+        X509_free(cert);
+        cert = NULL;
+        return NULL;
+    }
+
+    return pubkey;
 }
 
 /************************************************************************* 
@@ -369,13 +450,11 @@ CLEAN:
 int verify_rsa_signature(const char *cert_file, const char *data_file, const char *signed_file)
 {
     FILE *fp = NULL;
-    X509 *cert = NULL;
     int ret = -1;
     long sign_size = 0;
-    uint8_t *sign = NULL;
+    uint8_t *memblock = NULL;
     long read_size = 0;
     long data_size = 0;
-    uint8_t *data = NULL;
     EVP_PKEY *pubkey = NULL;
     EVP_MD_CTX *ctx = NULL;
 
@@ -385,23 +464,6 @@ int verify_rsa_signature(const char *cert_file, const char *data_file, const cha
             cert_file, signed_file, data_file);
         return  -1;
     }
-
-    fp = fopen(cert_file, "rb");
-    if (NULL == fp)
-    {
-        APP_LOG_ERROR("fopen failed[file: %s]", cert_file);
-        goto CLEAN;
-    }
-
-    cert = PEM_read_X509(fp, NULL, NULL, NULL);
-    if (NULL == cert)
-    {
-        APP_LOG_ERROR("PEM_read_X509 failed[file: %s]", cert_file);
-        goto CLEAN;
-    }
-
-    fclose(fp);
-    fp = NULL;
 
     /* 读取签名数据 */
     fp = fopen(signed_file, "rb");
@@ -415,13 +477,14 @@ int verify_rsa_signature(const char *cert_file, const char *data_file, const cha
     sign_size = ftell(fp);
     rewind(fp);
 
-    sign = (uint8_t *)calloc(1, sign_size);
-    if (NULL == sign)
+    /* signature file size + data segment size */
+    memblock = (uint8_t *)calloc(1, sign_size + 256);
+    if (NULL == memblock)
     {
         APP_LOG_ERROR("calloc failed");
         goto CLEAN;
     }
-    fread(sign, 1, sign_size, fp);
+    fread(memblock, 1, sign_size, fp);
     fclose(fp);
     fp = NULL;
 
@@ -437,10 +500,8 @@ int verify_rsa_signature(const char *cert_file, const char *data_file, const cha
     data_size = ftell(fp);
     rewind(fp);
 
-    data = (uint8_t *)calloc(1, 256);
-
     /* 验证签名 */
-    pubkey = X509_get_pubkey(cert);
+    pubkey = get_rsa_pubkey(cert_file);
     if (NULL == pubkey)
     {
         APP_LOG_ERROR("X509_get_pubkey failed");
@@ -462,8 +523,8 @@ int verify_rsa_signature(const char *cert_file, const char *data_file, const cha
 
     while (read_size + 256 < data_size)
     {
-        fread(data, 1, 256, fp);
-        if (EVP_VerifyUpdate(ctx, data, 256) != 1)
+        fread(memblock + sign_size, 1, 256, fp);
+        if (EVP_VerifyUpdate(ctx, memblock + sign_size, 256) != 1)
         {
             APP_LOG_ERROR("EVP_VerifyUpdate failed");
             goto CLEAN;
@@ -471,30 +532,27 @@ int verify_rsa_signature(const char *cert_file, const char *data_file, const cha
         read_size += 256;
     }
 
-    fread(data, 1, data_size - read_size, fp);
-    if (EVP_VerifyUpdate(ctx, data, data_size - read_size) != 1)
+    fread(memblock + sign_size, 1, data_size - read_size, fp);
+    if (EVP_VerifyUpdate(ctx, memblock + sign_size, data_size - read_size) != 1)
     {
         APP_LOG_ERROR("EVP_VerifyUpdate failed");
         goto CLEAN;
     }
 
-    if (EVP_VerifyFinal(ctx, sign, sign_size, pubkey) != 1)
+    if (EVP_VerifyFinal(ctx, memblock, sign_size, pubkey) != 1)
     {
         APP_LOG_ERROR("Signification verified error");
+        goto CLEAN;
     }
-    else
-    {
-        APP_LOG_INFO("Signification verified success");
-        ret = 0;
-    }
+
+    APP_LOG_INFO("Signification verified success");
+    ret = 0;
 
 CLEAN: 
     FREE_VARIATE_WITH_FUNC(fp, fclose);
     FREE_VARIATE_WITH_FUNC(ctx, EVP_MD_CTX_destroy);
     FREE_VARIATE_WITH_FUNC(pubkey, EVP_PKEY_free);
-    FREE_VARIATE_WITH_FUNC(data, free);
-    FREE_VARIATE_WITH_FUNC(sign, free);
-    FREE_VARIATE_WITH_FUNC(cert, X509_free);
+    FREE_VARIATE_WITH_FUNC(memblock, free);
     return ret;
 }
 
