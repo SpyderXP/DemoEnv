@@ -1,5 +1,5 @@
 {
-    "level": "ERROR",
+    "level": "DEBUG",
     "switch": "1",
     "path": "./log",
     "name": "test_code",

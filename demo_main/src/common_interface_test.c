@@ -38,14 +38,6 @@ int g_epollfd = -1;
 /* EPOLL定时器实例 */
 EPOLL_TIMER_T g_epoll_timer[EPOLL_EVENT_SIZE] = {0};
 
-/************************************************************************* 
-*  负责人    : xupeng
-*  创建日期  : 20250117
-*  函数功能  : EPOLL处理回调.
-*  输入参数  : ctx - 定时器回调参数.
-*  输出参数  : 无.
-*  返回值    : 0 - 成功  -1 - 失败.
-*************************************************************************/
 int epoll_data_process(TIMER_CTX_T *ctx)
 {
     struct timeval tv = {0};
@@ -69,14 +61,6 @@ int epoll_data_process(TIMER_CTX_T *ctx)
     return 0;
 }
 
-/************************************************************************* 
-*  负责人    : xupeng
-*  创建日期  : 20250117
-*  函数功能  : EPOLL定时器处理逻辑.
-*  输入参数  : ctx - 定时器回调参数.
-*  输出参数  : 无.
-*  返回值    : 0 - 成功  -1 - 失败.
-*************************************************************************/
 int epoll_timer_run(void)
 {
     pthread_t pt = 0;
@@ -145,14 +129,6 @@ FAIL:
     return -1;
 }
 
-/************************************************************************* 
-*  负责人    : xupeng
-*  创建日期  : 20250128
-*  函数功能  : 通用链表接口测试.
-*  输入参数  : 无.
-*  输出参数  : 无.
-*  返回值    : 0 - 成功  -1 - 失败.
-*************************************************************************/
 int common_list_interface_test(void)
 {
     LIST_T list = {0};
@@ -218,7 +194,7 @@ int common_list_interface_test(void)
         outnode = NULL;
     }
 
-    snprintf(key, sizeof(key), "fourth node");
+    snprintf(key, sizeof(key), "third node");
     list_pop_node_by_elem(&list, (void *)key, 32, &outnode);
     if (outnode != NULL)
     {
@@ -235,14 +211,64 @@ int common_list_interface_test(void)
     return 0;
 }
 
-/************************************************************************* 
-*  负责人    : xupeng
-*  创建日期  : 20250209
-*  函数功能  : 链表反转.
-*  输入参数  : list - 待反转链表.
-*  输出参数  : list - 反转结果.
-*  返回值    : 0 - 成功  -1 - 失败.
-*************************************************************************/
+void partition_list()
+{
+    LIST_T list = {0};
+    LIST_NODE_T node[6] = {0};
+    int arr[6] = {1, 4, 3, 2, 5, 2};
+    for (int i = 0; i < 6; i++)
+    {
+        node[i].data = calloc(1, 4);
+        node[i].datalen = 4;
+        *(int *)node[i].data = arr[i];
+        if (list_push_node_to_tail(&list, &node[i]) != 0)
+        {
+            APP_LOG_ERROR("Failed to push node");
+        }
+    }
+
+    {
+        LIST_NODE_T *p = list.head;
+        LIST_NODE_T dummy1 = {0};   /* 虚拟头节点 */
+        LIST_NODE_T dummy2 = {0};   /* 虚拟头节点 */
+        LIST_NODE_T *p1 = &dummy1;
+        LIST_NODE_T *p2 = &dummy2;
+        LIST_NODE_T *tmp = NULL;
+    
+        while (p != NULL)
+        {
+            if (*(int *)p->data < 3)
+            {
+                p1->next = p;
+                p1 = p1->next;
+            }
+            else 
+            {
+                p2->next = p;
+                p2 = p2->next;
+            }
+    
+            /* 应将每一个节点的next断掉
+               否则一旦原链表出现next没有置空的节点
+               再转移到新链表上就可能导致链表成环 */
+            // p = p->next;
+            tmp = p->next;
+            p->next = NULL;
+            p = tmp;
+        }
+    
+        p1->next = dummy2.next;
+        p2 = dummy1.next;
+        while (p2 != NULL)
+        {
+            APP_LOG_INFO("node: %d", *(int *)p2->data);
+            p2 = p2->next;
+        }
+    }
+
+    return ;
+}
+
 int list_reverse(LIST_T *list)
 {
     LIST_NODE_T *next = NULL;
@@ -254,12 +280,12 @@ int list_reverse(LIST_T *list)
         return -1;
     }
 
-    if (NULL == list->node || 0 == list->size)
+    if (NULL == list->head || 0 == list->size)
     {
         return -1;
     }
 
-    cur = list->node;
+    cur = list->head;
     next = cur->next;
 
     if (NULL == next)
@@ -276,20 +302,12 @@ int list_reverse(LIST_T *list)
             next = cur->next;
             cur->next = prev;
         }
-        list->node = cur;
+        list->head = cur;
     }
 
     return 0;
 }
 
-/************************************************************************* 
-*  负责人    : xupeng
-*  创建日期  : 20250209
-*  函数功能  : 链表反转测试.
-*  输入参数  : 无.
-*  输出参数  : 无.
-*  返回值    : 无.
-*************************************************************************/
 void list_reverse_test(void)
 {
     LIST_T list = {0};
@@ -343,14 +361,6 @@ void list_reverse_test(void)
     return ;
 }
 
-/************************************************************************* 
-*  负责人    : xupeng
-*  创建日期  : 20250209
-*  函数功能  : 排序算法测试.
-*  输入参数  : 无.
-*  输出参数  : 无.
-*  返回值    : 无.
-*************************************************************************/
 int sort_algo_test()
 {
     /* 冒泡排序 */
@@ -414,6 +424,55 @@ int sort_algo_test()
     return 0;
 }
 
+void binary_heap_test()
+{
+    BINARY_HEAP_T *heap = create_binary_heap(4);
+    BINARY_HEAP_NODE_T arr[] = 
+    {
+        {12, 0, NULL}, 
+        {11, 0, NULL}, 
+        {13, 0, NULL}, 
+        {5, 0, NULL}, 
+        {6, 0, NULL}, 
+        {7, 0, NULL}, 
+    };
+
+    // 插入元素
+    for (int i = 0; i < sizeof(arr) / sizeof(arr[0]); i++)
+    {
+        min_heap_insert(heap, &arr[i]);
+    }
+
+    // 提取并打印堆顶元素
+    BINARY_HEAP_NODE_T *outnode = NULL;
+    printf("Min elements in order: ");
+    while (heap->size > 0)
+    {
+        outnode = min_heap_extract(heap);
+        printf("%d ", outnode->priority);
+    }
+    printf("\n");
+
+    heap->size = 6;
+    heap->nodes[0] = &arr[0];
+    heap->nodes[1] = &arr[1];
+    heap->nodes[2] = &arr[2];
+    heap->nodes[3] = &arr[3];
+    heap->nodes[4] = &arr[4];
+    heap->nodes[5] = &arr[5];
+    build_min_heap(heap);
+    printf("Min elements in order: ");
+    while (heap->size > 0)
+    {
+        outnode = min_heap_extract(heap);
+        printf("%d ", outnode->priority);
+    }
+    printf("\n");
+
+    free(heap->nodes);
+    free(heap);
+}
+
 /************************************************************************* 
 *  负责人    : xupeng
 *  创建日期  : 20250117
@@ -425,9 +484,9 @@ int sort_algo_test()
 *************************************************************************/
 int main(int argc, char **argv)
 {
-    char *log_conf_file = "./etc/test_code_logconf.json";
+    // char *log_conf_file = "./etc/test_code_logconf.json";
 
-    if (init_logger(log_conf_file, NULL) != 0) 
+    if (init_logger(NULL, NULL) != 0) 
     {
         fprintf(stdout, "Init logger failed\n");
         return -1;
@@ -443,9 +502,13 @@ int main(int argc, char **argv)
     //     APP_LOG_ERROR("list interface test failed");
     // }
 
+    // partition_list();
+
+    binary_heap_test();
+
     // list_reverse_test();
 
-    sort_algo_test();
+    // sort_algo_test();
 
     // wait for thread.
     while (1)

@@ -84,6 +84,7 @@ struct option g_crypto_options[] =
     {"file",        required_argument,  NULL, 'f'},
     {"algo",        required_argument,  NULL, 'a'},
     {"help",        no_argument,        NULL, 'h'},
+    {NULL,          0,                  0,      0},
 };
 
 /************************************************************************* 
