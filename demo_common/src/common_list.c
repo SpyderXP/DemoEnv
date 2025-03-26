@@ -153,8 +153,7 @@ int list_pop_node_from_tail(LIST_T *list, LIST_NODE_T **node)
 *************************************************************************/
 int list_pop_node_by_elem(LIST_T *list, void *data, uint32_t datalen, LIST_NODE_T **node)
 {
-    LIST_NODE_T *old = NULL;
-    LIST_NODE_T *cur = NULL;
+    LIST_NODE_T *tmp = NULL;
 
     if (NULL == list || NULL == node)
     {
@@ -166,38 +165,36 @@ int list_pop_node_by_elem(LIST_T *list, void *data, uint32_t datalen, LIST_NODE_
         return -1;
     }
 
-    old = list->head;
+    tmp = list->head;
 
-    if (datalen == old->datalen && 0 == memcmp(old->data, data, datalen))
+    if (datalen == tmp->datalen && 0 == memcmp(tmp->data, data, datalen))
     {
-        list->head = old->next;
+        list->head = tmp->next;
         if (NULL == list->head)
         {
             list->tail = NULL;
         }
         list->size--;
-        *node = old;
+        *node = tmp;
         return 0;
     }
 
-    cur = old->next;
-    for (uint32_t i = 0; i < list->size && cur != NULL; i++)
+    while (tmp != NULL && tmp->next != NULL)
     {
-        if (datalen == cur->datalen && 0 == memcmp(cur->data, data, datalen))
+        if (datalen == tmp->next->datalen && 0 == memcmp(tmp->next->data, data, datalen))
         {
-            old->next = cur->next;
-            cur->next = NULL;
-            if (NULL == old->next)
+            *node = tmp->next;
+            if (NULL == tmp->next->next)
             {
-                list->tail = old;
+                list->tail = tmp->next;
             }
+
+            tmp->next = tmp->next->next;
             list->size--;
-            *node = cur;
             return 0;
         }
 
-        old = old->next;
-        cur = cur->next;
+        tmp = tmp->next;
     }
 
     return -1;

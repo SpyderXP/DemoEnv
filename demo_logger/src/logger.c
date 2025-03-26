@@ -143,8 +143,8 @@ static pthread_t s_async_pt = 0;                    /* ASYNC PROCESS THREAD */
 static pthread_t s_statis_pt = 0;                   /* STATISTICS PROCESS THREAD */
 static LOG_DATA_T s_async_tmp_node;                 /* ASYNC QUEUE TMP NODE */
 static LINK_QUEUE_T *s_link_queue = NULL;           /* ASYNC LOG LINK QUEUE */
-static LINK_QUEUE_T *s_producer_queue = NULL;       /* PRODUCER QUEUE POINTER */
-static LINK_QUEUE_T *s_consumer_queue = NULL;       /* CONSUMER QUEUE POINTER */
+static LINK_QUEUE_T *s_producer_ptr = NULL;         /* PRODUCER QUEUE POINTER */
+static LINK_QUEUE_T *s_consumer_ptr = NULL;         /* CONSUMER QUEUE POINTER */
 static int s_queue_cnt = 0;                         /* QUEUE NUMBER COUNT */
 
 static char *s_err_log_buf = NULL;                  /* GLOBAL ERROR LOG BUFFER */
@@ -276,8 +276,8 @@ LINK_QUEUE_T *init_logger_link_queue(void)
     }
 
     head->next = head;
-    s_producer_queue = head;
-    s_consumer_queue = head;
+    s_producer_ptr = head;
+    s_consumer_ptr = head;
     s_queue_cnt = 1;
 
     /* 初始化互斥锁 */
@@ -1709,15 +1709,15 @@ void *async_log_process_thread(void *arg)
     {
         pthread_spin_lock(&s_link_queue_lock);
 
-        if (s_consumer_queue->queue->status == EMPTY_QUEUE)
+        if (s_consumer_ptr->queue->status == EMPTY_QUEUE)
         {
-            s_consumer_queue = s_consumer_queue->next;
+            s_consumer_ptr = s_consumer_ptr->next;
             pthread_spin_unlock(&s_link_queue_lock);
             logger_usleep(20000);
             continue;
         }
 
-        if (log_dequeue(s_consumer_queue->queue, MAX_QUEUE_SIZE, &s_async_tmp_node) != 0)
+        if (log_dequeue(s_consumer_ptr->queue, MAX_QUEUE_SIZE, &s_async_tmp_node) != 0)
         {
             fprintf(stdout, "LOG DEQUEUE failed\n");
         }
@@ -1904,12 +1904,12 @@ void log_enqueue_process(LOG_DATA_T *data)
     pthread_spin_lock(&s_link_queue_lock);
 
     /* 根据producer pointer寻找可用的空闲日志队列 */
-    if (s_producer_queue->queue->status == FULL_QUEUE)
+    if (s_producer_ptr->queue->status == FULL_QUEUE)
     {
-        s_producer_queue = s_producer_queue->next;
+        s_producer_ptr = s_producer_ptr->next;
 
         /* 由于是单向循环链表，所以两次判定队列满，则可以确定所有队列已满 */
-        if (s_producer_queue->queue->status == FULL_QUEUE)
+        if (s_producer_ptr->queue->status == FULL_QUEUE)
         {
             if (s_queue_cnt == MAX_QUEUE_NUM)
             {
@@ -1919,7 +1919,7 @@ void log_enqueue_process(LOG_DATA_T *data)
             }
 
             /* 创建新节点 */
-            if (create_new_log_link_node(s_producer_queue) != 0)
+            if (create_new_log_link_node(s_producer_ptr) != 0)
             {
                 /* MEM PROBLEM */
                 pthread_spin_unlock(&s_link_queue_lock);
@@ -1929,13 +1929,13 @@ void log_enqueue_process(LOG_DATA_T *data)
 
             /* 新增了一条队列计数 */
             s_queue_cnt++;
-            s_producer_queue = s_producer_queue->next;
+            s_producer_ptr = s_producer_ptr->next;
             fprintf(stdout, "create a new log queue:  %d\n", s_queue_cnt);
         }
     }
 
     /* 数据入队 */
-    log_enqueue(s_producer_queue->queue, MAX_QUEUE_SIZE, data);
+    log_enqueue(s_producer_ptr->queue, MAX_QUEUE_SIZE, data);
     pthread_spin_unlock(&s_link_queue_lock);
     return ;
 }

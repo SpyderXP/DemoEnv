@@ -469,6 +469,49 @@ void binary_heap_test()
     }
     printf("\n");
 
+    BINARY_HEAP_NODE_T arr1[] = 
+    {
+        {1, 0, NULL}, 
+        {4, 0, NULL}, 
+        {5, 0, NULL}
+    };
+
+    BINARY_HEAP_NODE_T arr2[] = 
+    {
+        {1, 0, NULL}, 
+        {3, 0, NULL}, 
+        {4, 0, NULL}
+    };
+
+    BINARY_HEAP_NODE_T arr3[] = 
+    {
+        {2, 0, NULL}, 
+        {6, 0, NULL}
+    };
+
+    for (int i = 0; i < sizeof(arr1) / sizeof(arr1[0]); i++)
+    {
+        min_heap_insert(heap, &arr1[i]);
+    }
+
+    for (int i = 0; i < sizeof(arr2) / sizeof(arr2[0]); i++)
+    {
+        min_heap_insert(heap, &arr2[i]);
+    }
+
+    for (int i = 0; i < sizeof(arr3) / sizeof(arr3[0]); i++)
+    {
+        min_heap_insert(heap, &arr3[i]);
+    }
+
+    printf("Min elements in order: ");
+    while (heap->size > 0)
+    {
+        outnode = min_heap_extract(heap);
+        printf("%d ", outnode->priority);
+    }
+    printf("\n");
+
     free(heap->nodes);
     free(heap);
 }
@@ -497,14 +540,14 @@ int main(int argc, char **argv)
     //     APP_LOG_ERROR("epoll timer went error");
     // }
 
-    // if (common_list_interface_test() != 0)
-    // {
-    //     APP_LOG_ERROR("list interface test failed");
-    // }
+    if (common_list_interface_test() != 0)
+    {
+        APP_LOG_ERROR("list interface test failed");
+    }
 
     // partition_list();
 
-    binary_heap_test();
+    // binary_heap_test();
 
     // list_reverse_test();
 

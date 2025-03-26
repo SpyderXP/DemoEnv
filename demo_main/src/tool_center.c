@@ -28,7 +28,7 @@
 /* 预定义的关键字列表 */
 const char *g_compl_keywords[] = 
 {
-    "exit", "help", "print", "admin", "save", "load", "quit", "user", "test"
+    "exit", "help", "print", "save", "load", "quit", "user",
 };
 
 /* 关键字数量 */
@@ -41,7 +41,11 @@ int g_compl_list_index = 0;
 int g_compl_strlen = 0;
 
 /* 命令行提示字符串 */
-char g_command_hint[64] = {0};
+char g_command_hint[128] = {0};
+
+char g_command_mod_name[32] = {0};
+
+char g_command_username[32] = {0};
 
 int g_command_argc = 0;
 
@@ -88,6 +92,24 @@ int signal_process(void)
 /************************************************************************* 
 *  负责人    : xupeng
 *  创建日期  : 20250228
+*  函数功能  : 获取补全关键字的指定元素.
+*  输入参数  : idx - 补全关键字数组索引.
+*  输出参数  : 无.
+*  返回值    : 匹配的字符串.
+*************************************************************************/
+const char *get_compl_command_elem(uint16_t idx)
+ {
+    if(idx >= g_compl_list_cnt)
+    {
+        return NULL;
+    }
+
+    return g_compl_keywords[idx];
+ }
+
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20250228
 *  函数功能  : 辅助函数：生成可能的匹配项.
 *  输入参数  : text - 输入的字符串.
 *             state - 调用状态.
@@ -106,22 +128,14 @@ char *possible_matches(const char *text, int state)
     }
 
     /* 遍历预定义的关键字列表 */
-    while ((name = g_compl_keywords[g_compl_list_index++]))
+    while ((name = get_compl_command_elem(g_compl_list_index)) != NULL)
     {
+        g_compl_list_index++;
+
         if (0 == strncmp(name, text, g_compl_strlen))
         {
-            if (0 == g_compl_strlen)  /* 避免选择默认关键字 */
-            {
-                break;
-            }
-
             /* 返回匹配项的副本，由readline库free */
             return strdup(name);
-        }
-
-        if (g_compl_list_index >= g_compl_list_cnt)
-        {
-            break;
         }
     }
 
@@ -175,50 +189,53 @@ int split_line(char* line)
     return 0;
 }
 
+int wechat_process()
+{
+    return 0;
+}
+
 int command_parameter_process(int argc, char **argv)
 {
     int level = 0;
-    char username[32] = {0};
+    // char username[32] = {0};
 
     if (0 == argc)
     {
         return 0;
     }
 
-    if (0 == strcmp(argv[0], "admin"))
+    if (0 == strcmp(argv[0], "wechat"))
     {
-        level = 2;
-    }
-
-    if (0 == strcmp(argv[0], "user") && argc > 1)
-    {
-        snprintf(username, sizeof(username), "%s", argv[1]);
+        snprintf(g_command_mod_name, sizeof(g_command_mod_name), "wechat");
         level = 1;
     }
-
-    if (0 == strcmp(argv[0], "exit") && level > 0)
+    else if (0 == strcmp(argv[0], "exit") && level > 0)
     {
         level--;
     }
-
-    if (0 == strcmp(argv[0], "quit"))
+    else if (0 == strcmp(argv[0], "quit"))
     {
         exit(0);
     }
 
-    switch (level)
-    {
-    case 2:
-        snprintf(username, sizeof(username), "Admin");
-        break;
+    // if (0 == strcmp(argv[0], "user") && argc > 1)
+    // {
+    //     snprintf(username, sizeof(username), "%s", argv[1]);
+    //     level = 2;
+    // }
 
-    case 1:
-    case 0:
-    default:
-        break;
-    }
+    // switch (level)
+    // {
+    // case 2:
+    //     break;
 
-    snprintf(g_command_hint, sizeof(g_command_hint), "%s> ", username);
+    // case 1:
+    // case 0:
+    // default:
+    //     break;
+    // }
+
+    snprintf(g_command_hint, sizeof(g_command_hint), "%s%s> ", g_command_mod_name, g_command_username);
     return 0;
 }
 
@@ -238,11 +255,6 @@ void command_process_loop(void)
 
     /* 设置自动补全回调 */
     rl_attempted_completion_function = command_completer;
-
-    for (int i = 0; i < g_compl_list_cnt; i++)
-    {
-        printf("[%d] %p\n", i, g_compl_keywords[i]);
-    }
 
     snprintf(g_command_hint, sizeof(g_command_hint), "> ");
     while ((line = readline(g_command_hint)) != NULL)
