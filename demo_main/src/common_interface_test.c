@@ -19,6 +19,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <stdatomic.h>
+#include <threads.h>
+#include <math.h>
 #include "logger.h"
 #include "common_macro.h"
 #include "epoll_timer.h"

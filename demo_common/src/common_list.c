@@ -179,7 +179,7 @@ int list_pop_node_by_elem(LIST_T *list, void *data, uint32_t datalen, LIST_NODE_
         return 0;
     }
 
-    while (tmp != NULL && tmp->next != NULL)
+    while (tmp->next != NULL)
     {
         if (datalen == tmp->next->datalen && 0 == memcmp(tmp->next->data, data, datalen))
         {

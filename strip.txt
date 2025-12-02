@@ -1,0 +1,24 @@
+C程序剥离符号表操作
+
+1、objcopy --only-keep-debug a.out a.out.sym
+使用objcopy工具抽取程序(a.out)的符号表(a.out.sym)
+
+2、strip --strip-all a.out
+手动剥离程序的所有符号
+
+3、nm -C a.out.sym
+查看生成的符号表文件信息
+
+4、objcopy --add-gnu-debuglink=a.out.sym a.out
+符号表重新关联，将符号表文件链接到可执行文件，在ELF文件头添加 .gnu_debuglink 段
+
+5、readelf -S a.out | grep debuglink
+验证符号表的关联状态
+
+6、gdb ./a.out
+执行程序，确认能找到相关符号
+
+Q: 为什么要剥离符号表？
+A: 
+在空间有限的设备上，如果可执行文件非常大，则可以考虑将符号表剥离，缩减可执行文件大小，并不会影响程序的正常运行
+并且可以独立保存剥离的符号表，在需要进行程序调试时，可以手动链接相关符号表

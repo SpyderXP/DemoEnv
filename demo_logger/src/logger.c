@@ -29,6 +29,7 @@
 #include <dirent.h>
 #include "logger.h"
 #include "common_macro.h"
+#include "cjson.h"
 
 #define gettid()                        syscall(SYS_gettid)
 #define NONE_COLOR_LOG                  "\033[0m"
@@ -55,6 +56,16 @@
 #define CMD_SIZE                        1024
 #define LOGFILE_SIZE                    5
 #define MBYTES_SIZE                     (1024 * 1024)
+#define LOG_SWITCH                      1
+#define LOG_BUF_SIZE                    10 * 1024     /* 10kB LOG Buffer */
+
+/* 日志输出模式 */
+enum OUT_MODE
+{
+    ONLY_SCREEN = 0,
+    ONLY_FILE,
+    FILE_AND_SCREEN
+};
 
 enum QUEUE_STATE_E
 {
@@ -69,6 +80,7 @@ typedef struct LOG_CONF_ITEM_S
     char log_file_path[FILEPATH_SIZE];
     char log_name[LOGNAME_SIZE];
     char errlog_name[LOGNAME_SIZE];
+    uint8_t output_mode;
     uint8_t log_switch;
     uint8_t debug_switch;
     uint16_t log_maxlen;
@@ -78,10 +90,16 @@ typedef struct LOG_CONF_ITEM_S
 
 typedef struct LOG_DATA_S
 {
-    uint8_t mode;
     uint8_t level;
+    uint16_t line;
+    pid_t pid;
+    pid_t tid;
+    char time_buf[TIMESTAMP_SIZE];
+    char filename[FILENAME_SIZE];
+    char function[FUNC_NAME_SIZE];
+    char module[MOD_NAME_SIZE];
+    char logname[LOGNAME_SIZE];     /* 输出的日志文件名 */
     char *buf;                      /* 日志内容 */
-    char logname[FILENAME_SIZE];    /* 输出的日志文件名 */
 } LOG_DATA_T;
 
 typedef struct QUEUE_NODE_S
@@ -95,7 +113,6 @@ typedef struct QUEUE_NODE_S
 typedef struct LOG_PREFIX_S
 {
     uint8_t level;
-    uint8_t out_mode;
     uint16_t line;
     pid_t pid;
     pid_t tid;
@@ -157,19 +174,15 @@ static char *s_byte_log_buff = NULL;                /* BYTE LOG BUFFER */
 static char *s_suffix_log_buff = NULL;              /* LOG SUFFIX BUFFER */
 static char *s_whole_log_buff = NULL;               /* LOG PREFIX + SUFFIX BUFFER */
 
-// static char *s_log_io_buf1 = NULL;                  /* LOG IO BUFFER BLOCK 1 */
-// static char *s_log_io_buf2 = NULL;                  /* LOG IO BUFFER BLOCK 2 */
-// static char *s_read_bufptr = NULL;                  /* READ BUFFER POINTER */
-// static char *s_write_bufptr = NULL;                 /* WRITE BUFFER POINTER */
+static char *s_log_io_buf1 = NULL;                  /* LOG IO BUFFER BLOCK 1 */
+static char *s_log_io_buf2 = NULL;                  /* LOG IO BUFFER BLOCK 2 */
+static char *s_read_bufptr = NULL;                  /* READ BUFFER POINTER */
+static char *s_write_bufptr = NULL;                 /* WRITE BUFFER POINTER */
 
 static char s_system_cmdstr[CMD_SIZE] = {0};        /* 系统命令行字符串 */
 static MAIN_LOOP_FLAG_T s_loop_flag;                /* 控制主流程循环 */
 
-int wrt_all_log(const char *log_buff, uint8_t out_mode, uint8_t level, const char *logname);
-QUEUE_NODE_T *init_log_queue(unsigned max_queue_size);
-int destroy_log_queue(QUEUE_NODE_T **queue);
-int file_log_flush(char *log_path);
-int err_log_flush(char *log_path);
+int wrt_all_log(const char *log_buff, uint8_t level, const char *logname);
 
 /************************************************************************* 
 *  负责人    :  xupeng
@@ -252,132 +265,6 @@ void clean_logger_buffer(void)
 /************************************************************************* 
 *  负责人    : xupeng
 *  创建日期  : 20210622
-*  函数功能  : 日志链队初始化.
-*  输入参数  : 无.
-*  输出参数  : 无.
-*  返回值    : 日志链队.
-*************************************************************************/
-LINK_QUEUE_T *init_logger_link_queue(void)
-{
-    LINK_QUEUE_T *head = NULL;
-
-    head = (LINK_QUEUE_T *)calloc(1, sizeof(LINK_QUEUE_T));
-    if (NULL == head)
-    {
-        return NULL;
-    }
-
-    head->queue = init_log_queue(MAX_QUEUE_SIZE);
-    if (NULL == head->queue)
-    {
-        free(head);
-        head = NULL;
-        return NULL;
-    }
-
-    head->next = head;
-    s_producer_ptr = head;
-    s_consumer_ptr = head;
-    s_queue_cnt = 1;
-
-    /* 初始化互斥锁 */
-    if (pthread_spin_init(&s_link_queue_lock, PTHREAD_PROCESS_PRIVATE) != 0)
-    {
-        if (head->queue != NULL)
-        {
-            destroy_log_queue(&head->queue);
-        }
-        free(head);
-        head = NULL;
-        return NULL;
-    }
-
-    return head;
-}
-
-/************************************************************************* 
-*  负责人    : xupeng
-*  创建日期  : 20210622
-*  函数功能  : 销毁日志链队.
-*  输入参数  : 日志链队任意节点.
-*  输出参数  : 无.
-*  返回值    : 无.
-*************************************************************************/
-void destroy_logger_link_queue(LINK_QUEUE_T *head)
-{
-    LINK_QUEUE_T *tmp_node = NULL;
-    LINK_QUEUE_T *head_node = NULL;
-
-    CHECK_NULL_1PARAM_WITHOUT_RET(head);
-
-    head_node = head;
-
-    while (head_node->next != NULL && head_node != head_node->next)
-    {
-        tmp_node = head_node->next;
-        head_node->next = head_node->next->next;
-        if (tmp_node->queue != NULL)
-        {
-            destroy_log_queue(&tmp_node->queue);
-        }
-        tmp_node->next = NULL;
-        free(tmp_node);
-        tmp_node = NULL;
-    }
-
-    if (head_node->queue != NULL)
-    {
-        destroy_log_queue(&head_node->queue);
-    }
-    head_node->next = NULL;
-    free(head_node);
-    head_node = NULL;
-
-    s_queue_cnt = 0;
-
-    /* 销毁互斥锁 */
-    pthread_spin_destroy(&s_link_queue_lock);
-    return ;
-}
-
-/************************************************************************* 
-*  负责人    : xupeng
-*  创建日期  : 20210622
-*  函数功能  : 创建新的日志链队节点.
-*  输入参数  : 待创建新节点的前置节点.
-*  输出参数  : 无.
-*  返回值    : 0 - 成功  -1 - 失败.
-*************************************************************************/
-int create_new_log_link_node(LINK_QUEUE_T *node)
-{
-    LINK_QUEUE_T *new_node = NULL;
-    LINK_QUEUE_T *tmp_node = NULL;
-
-    CHECK_NULL_1PARAM_WITH_RET(node, -1);
-
-    new_node = (LINK_QUEUE_T *)calloc(1, sizeof(LINK_QUEUE_T));
-    if (NULL == new_node)
-    {
-        return -1;
-    }
-
-    new_node->queue = init_log_queue(MAX_QUEUE_SIZE);
-    if (NULL == new_node->queue)
-    {
-        free(new_node);
-        new_node = NULL;
-        return -1;
-    }
-
-    tmp_node = node->next;
-    node->next = new_node;
-    new_node->next = tmp_node;
-    return 0;
-}
-
-/************************************************************************* 
-*  负责人    : xupeng
-*  创建日期  : 20210622
 *  函数功能  : 初始化异步日志队列.
 *  输入参数  : queue - 异步日志队列.
 *             max_queue_size - 最大队列长度.
@@ -397,8 +284,7 @@ QUEUE_NODE_T *init_log_queue(unsigned max_queue_size)
     queue->data = (LOG_DATA_T *)calloc(max_queue_size, sizeof(LOG_DATA_T));
     if (NULL == queue->data)
     {
-        free(queue);
-        queue = NULL;
+        FREE_VARIATE_WITH_FUNC(queue, free);
         return NULL;
     }
 
@@ -406,10 +292,8 @@ QUEUE_NODE_T *init_log_queue(unsigned max_queue_size)
         (char *)calloc(max_queue_size * s_log_conf_item.log_maxlen, sizeof(char));
     if (NULL == s_qnode_databuf[s_queue_cnt])
     {
-        free(queue->data);
-        queue->data = NULL;
-        free(queue);
-        queue = NULL;
+        FREE_VARIATE_WITH_FUNC(queue->data, free);
+        FREE_VARIATE_WITH_FUNC(queue, free);
         return NULL;
     }
 
@@ -440,23 +324,20 @@ int destroy_log_queue(QUEUE_NODE_T **queue)
     {
         if (s_qnode_databuf[i] != NULL)
         {
-            free(s_qnode_databuf[i]);
-            s_qnode_databuf[i] = NULL;
+            FREE_VARIATE_WITH_FUNC(s_qnode_databuf[i], free);
         }
     }
 
     if ((*queue)->data != NULL)
     {
-        free((*queue)->data);
-        (*queue)->data = NULL;
+        FREE_VARIATE_WITH_FUNC((*queue)->data, free);
     }
 
     (*queue)->head = 0;
     (*queue)->tail = 0;
     (*queue)->status = EMPTY_QUEUE;
 
-    free(*queue);
-    *queue = NULL;
+    FREE_VARIATE_WITH_FUNC(*queue, free);
     return 0;
 }
 
@@ -517,7 +398,7 @@ int log_queue_is_empty(QUEUE_NODE_T *queue)
 *************************************************************************/
 int log_enqueue(QUEUE_NODE_T *queue, unsigned max_queue_size, const LOG_DATA_T *data)
 {
-    // CHECK_NULL_2PARAM_WITH_RET(queue, data, -1);
+    CHECK_NULL_2PARAM_WITH_RET(queue, data, -1);
 
     if (queue->status == FULL_QUEUE)
     {
@@ -525,13 +406,35 @@ int log_enqueue(QUEUE_NODE_T *queue, unsigned max_queue_size, const LOG_DATA_T *
         return -1;
     }
 
-    // CHECK_NULL_1PARAM_WITH_RET(data->buf, -1);
+    CHECK_NULL_1PARAM_WITH_RET(data->buf, -1);
     CHECK_NULL_2PARAM_WITH_RET(queue->data, queue->data[queue->tail].buf, -1);
 
-    snprintf(queue->data[queue->tail].buf, s_log_conf_item.log_maxlen, "%s", data->buf);
-    memcpy(queue->data[queue->tail].logname, data->logname, FILENAME_SIZE);
-    queue->data[queue->tail].logname[FILENAME_SIZE - 1] = '\0';
-    queue->data[queue->tail].mode = data->mode;
+    if (0 == strcmp("", data->module))
+    {
+        snprintf(queue->data[queue->tail].buf, s_log_conf_item.log_maxlen, "%s %d/%d %s:%d(%s) - %s", 
+                    data->time_buf, 
+                    data->pid, 
+                    data->tid, 
+                    data->filename, 
+                    data->line, 
+                    data->function, 
+                    data->buf);
+    }
+    else 
+    {
+        snprintf(queue->data[queue->tail].buf, s_log_conf_item.log_maxlen, "%s %d/%d [%s] %s:%d(%s) - %s", 
+                    data->time_buf, 
+                    data->pid, 
+                    data->tid, 
+                    data->module, 
+                    data->filename, 
+                    data->line, 
+                    data->function, 
+                    data->buf);
+    }
+
+    memcpy(queue->data[queue->tail].logname, data->logname, LOGNAME_SIZE);
+    queue->data[queue->tail].logname[LOGNAME_SIZE - 1] = '\0';
     queue->data[queue->tail].level = data->level;
 
     queue->tail = (queue->tail + 1) % max_queue_size;
@@ -556,7 +459,7 @@ int log_enqueue(QUEUE_NODE_T *queue, unsigned max_queue_size, const LOG_DATA_T *
 *************************************************************************/
 int log_dequeue(QUEUE_NODE_T *queue, unsigned max_queue_size, LOG_DATA_T *data)
 {
-    // CHECK_NULL_2PARAM_WITH_RET(queue, data, -1);
+    CHECK_NULL_2PARAM_WITH_RET(queue, data, -1);
 
     if (queue->status == EMPTY_QUEUE)
     {
@@ -564,13 +467,35 @@ int log_dequeue(QUEUE_NODE_T *queue, unsigned max_queue_size, LOG_DATA_T *data)
         return -1;
     }
 
-    // CHECK_NULL_1PARAM_WITH_RET(data->buf, -1);
+    CHECK_NULL_1PARAM_WITH_RET(data->buf, -1);
     CHECK_NULL_1PARAM_WITH_RET(queue->data, -1);
 
-    snprintf(data->buf, s_log_conf_item.log_maxlen, "%s", queue->data[queue->head].buf);
-    memcpy(data->logname, queue->data[queue->head].logname, FILENAME_SIZE);
-    data->logname[FILENAME_SIZE - 1] = '\0';
-    data->mode = queue->data[queue->head].mode;
+    if (0 == strcmp("", queue->data[queue->head].module))
+    {
+        snprintf(data->buf, s_log_conf_item.log_maxlen, "%s %d/%d %s:%d(%s) - %s", 
+                    queue->data[queue->head].time_buf, 
+                    queue->data[queue->head].pid, 
+                    queue->data[queue->head].tid, 
+                    queue->data[queue->head].filename, 
+                    queue->data[queue->head].line, 
+                    queue->data[queue->head].function, 
+                    queue->data[queue->head].buf);
+    }
+    else 
+    {
+        snprintf(data->buf, s_log_conf_item.log_maxlen, "%s %d/%d [%s] %s:%d(%s) - %s", 
+                    queue->data[queue->head].time_buf,  
+                    queue->data[queue->head].pid, 
+                    queue->data[queue->head].tid, 
+                    queue->data[queue->head].module, 
+                    queue->data[queue->head].filename, 
+                    queue->data[queue->head].line, 
+                    queue->data[queue->head].function, 
+                    queue->data[queue->head].buf);
+    }
+
+    memcpy(data->logname, queue->data[queue->head].logname, LOGNAME_SIZE);
+    data->logname[LOGNAME_SIZE - 1] = '\0';
     data->level = queue->data[queue->head].level;
 
     queue->head = (queue->head + 1) % max_queue_size;
@@ -581,6 +506,129 @@ int log_dequeue(QUEUE_NODE_T *queue, unsigned max_queue_size, LOG_DATA_T *data)
         queue->status = EMPTY_QUEUE;
     }
 
+    return 0;
+}
+
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20210622
+*  函数功能  : 日志链队初始化.
+*  输入参数  : 无.
+*  输出参数  : 无.
+*  返回值    : 日志链队.
+*************************************************************************/
+LINK_QUEUE_T *init_logger_link_queue(void)
+{
+    LINK_QUEUE_T *head = NULL;
+
+    head = (LINK_QUEUE_T *)calloc(1, sizeof(LINK_QUEUE_T));
+    if (NULL == head)
+    {
+        return NULL;
+    }
+
+    head->queue = init_log_queue(MAX_QUEUE_SIZE);
+    if (NULL == head->queue)
+    {
+        FREE_VARIATE_WITH_FUNC(head, free);
+        return NULL;
+    }
+
+    head->next = head;
+    s_producer_ptr = head;
+    s_consumer_ptr = head;
+    s_queue_cnt = 1;
+
+    /* 初始化互斥锁 */
+    if (pthread_spin_init(&s_link_queue_lock, PTHREAD_PROCESS_PRIVATE) != 0)
+    {
+        if (head->queue != NULL)
+        {
+            destroy_log_queue(&head->queue);
+        }
+
+        FREE_VARIATE_WITH_FUNC(head, free);
+        return NULL;
+    }
+
+    return head;
+}
+
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20210622
+*  函数功能  : 销毁日志链队.
+*  输入参数  : 日志链队任意节点.
+*  输出参数  : 无.
+*  返回值    : 无.
+*************************************************************************/
+void destroy_logger_link_queue(LINK_QUEUE_T *head)
+{
+    LINK_QUEUE_T *tmp_node = NULL;
+    LINK_QUEUE_T *head_node = NULL;
+
+    CHECK_NULL_1PARAM_WITHOUT_RET(head);
+
+    head_node = head;
+
+    while (head_node->next != NULL && head_node != head_node->next)
+    {
+        tmp_node = head_node->next;
+        head_node->next = head_node->next->next;
+        if (tmp_node->queue != NULL)
+        {
+            destroy_log_queue(&tmp_node->queue);
+        }
+
+        FREE_VARIATE_WITH_FUNC(tmp_node->next, free);
+        tmp_node = NULL;
+    }
+
+    if (head_node->queue != NULL)
+    {
+        destroy_log_queue(&head_node->queue);
+    }
+    head_node->next = NULL;
+    FREE_VARIATE_WITH_FUNC(head_node, free);
+
+    s_queue_cnt = 0;
+
+    /* 销毁互斥锁 */
+    pthread_spin_destroy(&s_link_queue_lock);
+    return ;
+}
+
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20210622
+*  函数功能  : 创建新的日志链队节点.
+*  输入参数  : 待创建新节点的前置节点.
+*  输出参数  : 无.
+*  返回值    : 0 - 成功  -1 - 失败.
+*************************************************************************/
+int create_new_log_link_node(LINK_QUEUE_T *node)
+{
+    LINK_QUEUE_T *new_node = NULL;
+    LINK_QUEUE_T *tmp_node = NULL;
+
+    CHECK_NULL_1PARAM_WITH_RET(node, -1);
+
+    new_node = (LINK_QUEUE_T *)calloc(1, sizeof(LINK_QUEUE_T));
+    if (NULL == new_node)
+    {
+        return -1;
+    }
+
+    new_node->queue = init_log_queue(MAX_QUEUE_SIZE);
+    if (NULL == new_node->queue)
+    {
+        FREE_VARIATE_WITH_FUNC(new_node, free);
+        return -1;
+    }
+
+    tmp_node = node->next;
+    node->next = new_node;
+    new_node->next = tmp_node;
     return 0;
 }
 
@@ -708,6 +756,86 @@ int log_flush(FILE *logger, uint32_t len)
 {
     CHECK_NULL_1PARAM_WITH_RET(logger, -1);
     CHECK_CONDITION_WITH_RET(EOF == fflush(logger), -1);
+    return 0;
+}
+
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20201204
+*  函数功能  : 刷新文件日志缓冲区.
+*  输入参数  : log_path - 日志文件绝对路径.
+*  输出参数  : 无.
+*  返回值    : 0 - 成功  -1 - 失败.
+*  调用关系  : 应用层强制输出当前日志.
+*************************************************************************/
+int file_log_flush(char *log_path)
+{
+    FILE *logger = NULL;
+
+    CHECK_NULL_1PARAM_WITH_RET(log_path, -1);
+    CHECK_CONDITION_WITH_RET(0 == s_file_log_buflen, 0);
+
+    logger = fopen(log_path, "a");
+    if (NULL == logger)
+    {
+        // fprintf(stderr, "Failed to Get LOG File Pointer\n");
+        return -1;
+    }
+
+    fprintf(logger, "%s", s_file_log_buf);
+    if (-1 == log_flush(logger, s_file_log_buflen))
+    {
+        // fprintf(stderr, "FILE LOG FLUSH Failed\n");
+        fclose(logger);
+        logger = NULL;
+        return -1;
+    }
+
+    memset(s_file_log_buf, 0, LOG_BUF_SIZE);
+    s_file_log_buflen = 0;
+    fclose(logger);
+    logger = NULL;
+
+    return 0;
+}
+
+/************************************************************************* 
+*  负责人    : xupeng
+*  创建日期  : 20201204
+*  函数功能  : 刷新ERROR日志缓冲区.
+*  输入参数  : log_path - ERROR日志文件绝对路径.
+*  输出参数  : 无.
+*  返回值    : 0 - 成功  -1 - 失败.
+*  调用关系  : 应用层强制输出当前日志.
+*************************************************************************/
+int err_log_flush(char *log_path)
+{
+    FILE *logger = NULL;
+
+    CHECK_NULL_1PARAM_WITH_RET(log_path, -1);
+    CHECK_CONDITION_WITH_RET(0 == s_err_log_buflen, 0);
+
+    logger = fopen(log_path, "a");
+    if (NULL == logger)
+    {
+        // fprintf(stderr, "Failed to Get LOG File Pointer\n");
+        return -1;
+    }
+
+    fprintf(logger, "%s", s_err_log_buf);
+    if (-1 == log_flush(logger, s_err_log_buflen))
+    {
+        // fprintf(stderr, "SCREEN AND FILE LOG FLUSH Failed\n");
+        fclose(logger);
+        logger = NULL;
+        return -1;
+    }
+
+    memset(s_err_log_buf, 0, LOG_BUF_SIZE);
+    s_err_log_buflen = 0;
+    fclose(logger);
+    logger = NULL;
+
     return 0;
 }
 
@@ -992,7 +1120,7 @@ void backtrace_to_buf(void)
     size = backtrace(buffer, BACKTRACE_SIZE);
 
     snprintf(text, sizeof(text), "Receive SIGSEGV, Obtained %zd stack frames.", size);
-    wrt_all_log(text, FILE_AND_SCREEN, LOG_ERR, NULL);
+    wrt_all_log(text, LOG_ERR, NULL);
 
     strings = backtrace_symbols(buffer, size);
 
@@ -1005,7 +1133,7 @@ void backtrace_to_buf(void)
     for (i = 0; i < size; i++)
     {
         snprintf(text, sizeof(text), "------ %s", strings[i]);
-        wrt_all_log(text, FILE_AND_SCREEN, LOG_ERR, NULL);
+        wrt_all_log(text, LOG_ERR, NULL);
     }
 
     FREE_VARIATE_WITH_FUNC(strings, free);
@@ -1104,6 +1232,12 @@ int assign_conf_item(cJSON *object, LOG_CONF_ITEM_T *log_conf_item)
     if (item != NULL)
     {
         log_conf_item->log_maxlen = atoi(item->valuestring);
+    }
+
+    item = cJSON_GetObjectItemCaseSensitive(object, "output_mode");
+    if (item != NULL)
+    {
+        log_conf_item->output_mode = atoi(item->valuestring);
     }
 
     item = cJSON_GetObjectItemCaseSensitive(object, "switch");
@@ -1226,8 +1360,7 @@ int get_log_config(char *config_file)
     if (fread(file_content, sizeof(char), file_len, fp) != file_len)
     {
         fprintf(stdout, "fread log conf file failed\n");
-        free(file_content);
-        file_content = NULL;
+        FREE_VARIATE_WITH_FUNC(file_content, free);
         fclose(fp);
         fp = NULL;
         return -1;
@@ -1239,24 +1372,11 @@ int get_log_config(char *config_file)
     if (parse_conf_json_content(file_content, file_len, &s_log_conf_item) != 0)
     {
         fprintf(stdout, "Parse LOG conf JSON file failed\n");
-        free(file_content);
-        file_content = NULL;
+        FREE_VARIATE_WITH_FUNC(file_content, free);
         return -1;
     }
 
-    free(file_content);
-    file_content = NULL;
-
-    // fprintf(stdout, "level:  %s\n", s_loglevel_str[s_def_level]);
-    // fprintf(stdout, "log_maxlen:  %u Bytes\n", s_log_conf_item.log_maxlen);
-    // fprintf(stdout, "switch:  %u\n", s_log_conf_item.log_switch);
-    // fprintf(stdout, "log path:  %s\n", s_log_conf_item.log_file_path);
-    // fprintf(stdout, "log name:  %s\n", s_log_conf_item.log_name);
-    // fprintf(stdout, "error log name:  %s\n", s_log_conf_item.errlog_name);
-    // fprintf(stdout, "debug switch:  %u\n", s_log_conf_item.debug_switch);
-    // fprintf(stdout, "single file size:  %u MB\n", s_log_conf_item.single_file_size_mb);
-    // fprintf(stdout, "directory size:  %u MB\n", s_log_conf_item.directory_size_mb);
-
+    FREE_VARIATE_WITH_FUNC(file_content, free);
     return 0;
 }
 
@@ -1285,6 +1405,24 @@ void get_log_time_buf(char *time_buf)
                     timenow.tm_hour, timenow.tm_min, timenow.tm_sec,
                     tv.tv_usec);
     return ;
+}
+
+/* 
+    1、buf1写满，切换buf，
+    2、buf1未写满，到了一定时间自动切换buf
+*/
+char *exchange_log_io_buf()
+{
+    /*
+        s_log_io_buf1
+        s_log_io_buf2
+        s_read_bufptr
+        s_write_bufptr
+    */
+
+    
+
+    return NULL;
 }
 
 /************************************************************************* 
@@ -1600,23 +1738,22 @@ int write_sublog_to_file(const char *log_buff, uint8_t out_mode, uint8_t level, 
 *  创建日期  : 20201203
 *  函数功能  : 打印所有等级日志.
 *  输入参数  : log_buff - 日志内容.
-*             out_mode - 日志输出模式.
 *             level - 日志等级.
 *             logname - 输出的日志文件名.
 *  输出参数  : 无.
 *  返回值    : 0 - 成功  -1 - 失败.
 *************************************************************************/
-int wrt_all_log(const char *log_buff, uint8_t out_mode, uint8_t level, const char *logname)
+int wrt_all_log(const char *log_buff, uint8_t level, const char *logname)
 {
     CHECK_NULL_1PARAM_WITH_RET(log_buff, -1);
 
     if (NULL == logname || 0 == strcmp(logname, ""))
     {
-        return write_chief_log_to_buffer(log_buff, out_mode, level);
+        return write_chief_log_to_buffer(log_buff, s_log_conf_item.output_mode, level);
     }
     else 
     {
-        return write_sublog_to_file(log_buff, out_mode, level, logname);
+        return write_sublog_to_file(log_buff, s_log_conf_item.output_mode, level, logname);
     }
 }
 
@@ -1724,7 +1861,7 @@ void *async_log_process_thread(void *arg)
 
         pthread_spin_unlock(&s_link_queue_lock);
 
-        wrt_all_log(s_async_tmp_node.buf, s_async_tmp_node.mode, s_async_tmp_node.level, s_async_tmp_node.logname);
+        wrt_all_log(s_async_tmp_node.buf, s_async_tmp_node.level, s_async_tmp_node.logname);
 
         if (s_log_conf_item.debug_switch != 0)
         {
@@ -1785,6 +1922,7 @@ int init_logger(char *log_conf_path, char *app_name)
     memset(&s_log_conf_item, 0, sizeof(s_log_conf_item));
     s_process_id = getpid();
     s_def_level                         = LOG_DEBUG;
+    s_log_conf_item.output_mode         = ONLY_SCREEN;
     s_log_conf_item.log_switch          = LOG_SWITCH;
     s_log_conf_item.debug_switch        = 1;
     s_log_conf_item.log_maxlen          = SUFFIX_BUFSIZE;
@@ -1804,14 +1942,15 @@ int init_logger(char *log_conf_path, char *app_name)
         fprintf(stdout, "Get log configuration failed\n");
         fprintf(stdout, "Apply the default configuration\n");
         fprintf(stdout, "level:  %s\n", s_loglevel_str[s_def_level]);
-        fprintf(stdout, "log_maxlen:  %d Bytes\n", s_log_conf_item.log_maxlen);
-        fprintf(stdout, "switch:  %d\n", s_log_conf_item.log_switch);
+        fprintf(stdout, "log_maxlen:  %u Bytes\n", s_log_conf_item.log_maxlen);
+        fprintf(stdout, "output mode:  %u\n", s_log_conf_item.output_mode);
+        fprintf(stdout, "switch:  %u\n", s_log_conf_item.log_switch);
         fprintf(stdout, "log path:  %s\n", s_log_conf_item.log_file_path);
         fprintf(stdout, "log name:  %s\n", s_log_conf_item.log_name);
         fprintf(stdout, "error log name:  %s\n", s_log_conf_item.errlog_name);
-        fprintf(stdout, "debug switch:  %d\n", s_log_conf_item.debug_switch);
-        fprintf(stdout, "single file size:  %d MB\n", s_log_conf_item.single_file_size_mb);
-        fprintf(stdout, "directory size:  %d MB\n", s_log_conf_item.directory_size_mb);
+        fprintf(stdout, "debug switch:  %u\n", s_log_conf_item.debug_switch);
+        fprintf(stdout, "single file size:  %u MB\n", s_log_conf_item.single_file_size_mb);
+        fprintf(stdout, "directory size:  %u MB\n", s_log_conf_item.directory_size_mb);
     }
 
     if (0 == ret || app_name != NULL)
@@ -1899,7 +2038,7 @@ FAIL:
 *************************************************************************/
 void log_enqueue_process(LOG_DATA_T *data)
 {
-    // CHECK_NULL_1PARAM_WITHOUT_RET(data);
+    CHECK_NULL_1PARAM_WITHOUT_RET(data);
 
     pthread_spin_lock(&s_link_queue_lock);
 
@@ -1948,20 +2087,19 @@ void log_enqueue_process(LOG_DATA_T *data)
 *             function - 当前函数名.
 *             module - 模块名(可以为空).
 *             line - 当前行数.
-*             out_mode - 指定日志输出模式.
 *             level - 指定日志等级.
 *             fmt - 日志内容格式.
 *  输出参数  : 无.
 *  返回值    : 无.
 *  调用关系  : 打印日志时调用.
 *************************************************************************/
-void write_log(const char *file, const char *function, const char *module, uint16_t line, uint8_t out_mode, 
-                        uint8_t level, const char *fmt, ...)
+void write_log(const char *file, const char *function, const char *module, uint16_t line, uint8_t level, 
+        const char *fmt, ...)
 {
     char            time_buf[TIMESTAMP_SIZE]    = {0};
     va_list         ap;
     pid_t           tid                         = 0;
-    LOG_DATA_T      data;
+    LOG_DATA_T      data                        = {0};
 
     CHECK_CONDITION_WITHOUT_RET(s_log_conf_item.log_switch != LOG_SWITCH);
     CHECK_CONDITION_WITHOUT_RET(level > s_def_level);
@@ -1975,22 +2113,20 @@ void write_log(const char *file, const char *function, const char *module, uint1
     pthread_spin_lock(&s_input_lock);
     vsnprintf(s_suffix_log_buff, s_log_conf_item.log_maxlen, fmt, ap);
 
-    /* Construct LOG Information */
+    data.pid = s_process_id;
+    data.tid = tid;
+    data.line = line;
+    data.level = level;
+    data.logname[0] = '\0';
+    snprintf(data.time_buf, sizeof(data.time_buf), "%s", time_buf);
+    snprintf(data.filename, sizeof(data.filename), "%s", file);
+    snprintf(data.function, sizeof(data.function), "%s", function);
+    data.buf = s_suffix_log_buff;
+
     if (module != NULL)
     {
-        snprintf(s_whole_log_buff, s_log_conf_item.log_maxlen, "%s %d/%d [%s] %s:%d(%s) - %s", 
-            time_buf, s_process_id, tid, module, file, line, function, s_suffix_log_buff);
+        snprintf(data.module, sizeof(data.module), "%s", module);
     }
-    else 
-    {
-        snprintf(s_whole_log_buff, s_log_conf_item.log_maxlen, "%s %d/%d %s:%d(%s) - %s", 
-            time_buf, s_process_id, tid, file, line, function, s_suffix_log_buff);
-    }
-
-    data.buf = s_whole_log_buff;
-    data.level = level;
-    data.mode = out_mode;
-    data.logname[0] = '\0';
 
     log_enqueue_process(&data);
 
@@ -2007,20 +2143,19 @@ void write_log(const char *file, const char *function, const char *module, uint1
 *             file - 此条日志所在文件名.
 *             function - 此条日志所在函数名.
 *             line - 此条日志所在行数.
-*             out_mode - 指定日志输出模式.
 *             level - 指定日志等级.
 *             fmt - 日志内容格式.
 *  输出参数  : 无.
 *  返回值    : 无.
 *  调用关系  : 打印日志时调用.
 *************************************************************************/
-void write_file_log(const char *logname, const char *file, const char *function, uint16_t line, uint8_t out_mode, 
-                            uint8_t level, const char *fmt, ...)
+void write_file_log(const char *logname, const char *file, const char *function, uint16_t line, uint8_t level, 
+            const char *fmt, ...)
 {
     char            time_buf[TIMESTAMP_SIZE]    = {0};
     va_list         ap;
     pid_t           tid                         = 0;
-    LOG_DATA_T      data;
+    LOG_DATA_T      data                        = {0};
 
     CHECK_CONDITION_WITHOUT_RET(NULL == logname);
     CHECK_CONDITION_WITHOUT_RET(s_log_conf_item.log_switch != LOG_SWITCH);
@@ -2036,14 +2171,15 @@ void write_file_log(const char *logname, const char *file, const char *function,
     pthread_spin_lock(&s_input_lock);
     vsnprintf(s_suffix_log_buff, s_log_conf_item.log_maxlen, fmt, ap);
 
-    /* Construct LOG Information */
-    snprintf(s_whole_log_buff, s_log_conf_item.log_maxlen, "%s %d/%d %s:%d(%s) - %s", 
-        time_buf, s_process_id, tid, file, line, function, s_suffix_log_buff);
-
-    snprintf(data.logname, sizeof(data.logname), "%s", logname);
-    data.buf = s_whole_log_buff;
+    data.pid = s_process_id;
+    data.tid = tid;
+    data.line = line;
     data.level = level;
-    data.mode = out_mode;
+    snprintf(data.time_buf, sizeof(data.time_buf), "%s", time_buf);
+    snprintf(data.filename, sizeof(data.filename), "%s", file);
+    snprintf(data.function, sizeof(data.function), "%s", function);
+    data.buf = s_suffix_log_buff;
+    snprintf(data.logname, sizeof(data.logname), "%s", logname);
 
     log_enqueue_process(&data);
 
@@ -2060,7 +2196,6 @@ void write_file_log(const char *logname, const char *file, const char *function,
 *             function - 当前函数名.
 *             module - 模块名(可以为空).
 *             line - 当前行数.
-*             out_mode - 指定日志输出模式.
 *             level - 指定日志等级.
 *             byte - 字节流.
 *             byte_len - 字节流长度.
@@ -2068,12 +2203,12 @@ void write_file_log(const char *logname, const char *file, const char *function,
 *  返回值    : 无.
 *  调用关系  : 打印日志时调用.
 *************************************************************************/
-void write_byte_log(const char *file, const char *function, const char *module, uint16_t line, uint8_t out_mode, 
-                        uint8_t level, const uint8_t *byte, uint32_t byte_len)
+void write_byte_log(const char *file, const char *function, const char *module, uint16_t line, uint8_t level, 
+        const uint8_t *byte, uint32_t byte_len)
 {
     char            time_buf[TIMESTAMP_SIZE]    = {0};
     pid_t           tid                         = 0;
-    LOG_DATA_T      data;
+    LOG_DATA_T      data                        = {0};
 
     CHECK_CONDITION_WITHOUT_RET(s_log_conf_item.log_switch != LOG_SWITCH);
     CHECK_CONDITION_WITHOUT_RET(level > s_def_level);
@@ -2099,107 +2234,25 @@ void write_byte_log(const char *file, const char *function, const char *module, 
         snprintf(s_byte_log_buff + 2 * i, 3, "%02x", byte[i]);
     }
 
-    /* Construct LOG Information */
+    data.pid = s_process_id;
+    data.tid = tid;
+    data.line = line;
+    data.level = level;
+    data.logname[0] = '\0';
+    snprintf(data.time_buf, sizeof(data.time_buf), "%s", time_buf);
+    snprintf(data.filename, sizeof(data.filename), "%s", file);
+    snprintf(data.function, sizeof(data.function), "%s", function);
+    data.buf = s_byte_log_buff;
+
     if (module != NULL)
     {
-        snprintf(s_whole_log_buff, s_log_conf_item.log_maxlen, "%s %d/%d [%s] %s:%d(%s) - %s", 
-            time_buf, s_process_id, tid, module, file, line, function, s_byte_log_buff);
+        snprintf(data.module, sizeof(data.module), "%s", module);
     }
-    else 
-    {
-        snprintf(s_whole_log_buff, s_log_conf_item.log_maxlen, "%s %d/%d %s:%d(%s) - %s", 
-            time_buf, s_process_id, tid, file, line, function, s_byte_log_buff);
-    }
-
-    data.buf = s_whole_log_buff;
-    data.level = level;
-    data.mode = out_mode;
-    data.logname[0] = '\0';
 
     log_enqueue_process(&data);
 
     pthread_spin_unlock(&s_input_lock);
     return ;
-}
-
-/************************************************************************* 
-*  负责人    : xupeng
-*  创建日期  : 20201204
-*  函数功能  : 刷新文件日志缓冲区.
-*  输入参数  : log_path - 日志文件绝对路径.
-*  输出参数  : 无.
-*  返回值    : 0 - 成功  -1 - 失败.
-*  调用关系  : 应用层强制输出当前日志.
-*************************************************************************/
-int file_log_flush(char *log_path)
-{
-    FILE *logger = NULL;
-
-    CHECK_NULL_1PARAM_WITH_RET(log_path, -1);
-    CHECK_CONDITION_WITH_RET(0 == s_file_log_buflen, 0);
-
-    logger = fopen(log_path, "a");
-    if (NULL == logger)
-    {
-        // fprintf(stderr, "Failed to Get LOG File Pointer\n");
-        return -1;
-    }
-
-    fprintf(logger, "%s", s_file_log_buf);
-    if (-1 == log_flush(logger, s_file_log_buflen))
-    {
-        // fprintf(stderr, "FILE LOG FLUSH Failed\n");
-        fclose(logger);
-        logger = NULL;
-        return -1;
-    }
-
-    memset(s_file_log_buf, 0, LOG_BUF_SIZE);
-    s_file_log_buflen = 0;
-    fclose(logger);
-    logger = NULL;
-
-    return 0;
-}
-
-/************************************************************************* 
-*  负责人    : xupeng
-*  创建日期  : 20201204
-*  函数功能  : 刷新ERROR日志缓冲区.
-*  输入参数  : log_path - ERROR日志文件绝对路径.
-*  输出参数  : 无.
-*  返回值    : 0 - 成功  -1 - 失败.
-*  调用关系  : 应用层强制输出当前日志.
-*************************************************************************/
-int err_log_flush(char *log_path)
-{
-    FILE *logger = NULL;
-
-    CHECK_NULL_1PARAM_WITH_RET(log_path, -1);
-    CHECK_CONDITION_WITH_RET(0 == s_err_log_buflen, 0);
-
-    logger = fopen(log_path, "a");
-    if (NULL == logger)
-    {
-        // fprintf(stderr, "Failed to Get LOG File Pointer\n");
-        return -1;
-    }
-
-    fprintf(logger, "%s", s_err_log_buf);
-    if (-1 == log_flush(logger, s_err_log_buflen))
-    {
-        // fprintf(stderr, "SCREEN AND FILE LOG FLUSH Failed\n");
-        fclose(logger);
-        logger = NULL;
-        return -1;
-    }
-
-    memset(s_err_log_buf, 0, LOG_BUF_SIZE);
-    s_err_log_buflen = 0;
-    fclose(logger);
-    logger = NULL;
-
-    return 0;
 }
 
 /************************************************************************* 

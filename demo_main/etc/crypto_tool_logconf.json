@@ -6,5 +6,6 @@
     "errlog_name": "crypto_tool_err",
     "debug_switch": "1",
     "single_file_size_mb": "1",
-    "directory_size_mb": "6"
+    "directory_size_mb": "6", 
+    "output_mode": "2"
 }
