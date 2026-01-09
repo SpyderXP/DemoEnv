@@ -21,7 +21,7 @@ else
 	CXXFLAGS += -g
 endif
 
-TARGETS				:= crypto_tool ffmpeg_tool test_code tool_center sign_tool
+TARGETS				:= crypto_tool ffmpeg_tool test_code tool_center sign_tool elevator_inner elevator_outer
 
 CFLAGS	+= -Iinc -I../common_inc
 
@@ -50,6 +50,16 @@ SIGN_TOOL_OBJS		:= $(SIGN_TOOL_SRCS:src/%.c=obj/%.o)
 SIGN_TOOL_LDFLAGS 	+= -rdynamic -no-pie -L../thd_lib/$(LIB_DIR) -L../demo_crypto/lib/$(LIB_DIR) -L../demo_logger/lib/$(LIB_DIR) -L../demo_common/lib/$(LIB_DIR)
 SIGN_TOOL			:= sign_tool
 
+ELEVATOR_OUTER_SRCS		:= src/elevator_outer.c
+ELEVATOR_OUTER_OBJS		:= $(ELEVATOR_OUTER_SRCS:src/%.c=obj/%.o)
+ELEVATOR_OUTER_LDFLAGS 	+= -rdynamic -no-pie -L../thd_lib/$(LIB_DIR) -L../demo_common/lib/$(LIB_DIR)
+ELEVATOR_OUTER			:= elevator_outer
+
+ELEVATOR_INNER_SRCS		:= src/elevator_inner.c
+ELEVATOR_INNER_OBJS		:= $(ELEVATOR_INNER_SRCS:src/%.c=obj/%.o)
+ELEVATOR_INNER_LDFLAGS 	+= -rdynamic -no-pie -L../thd_lib/$(LIB_DIR) -L../demo_common/lib/$(LIB_DIR)
+ELEVATOR_INNER			:= elevator_inner
+
 # 添加需要链接的库文件
 ifeq ($(LIB_TYPE),dynamic)
 	CRYPTO_TOOL_LDLIBS	+= -lcustom_crypto -llogger -lcommon -lcjson -lssl -lcrypto -lm -lpthread -lstdc++
@@ -57,12 +67,16 @@ ifeq ($(LIB_TYPE),dynamic)
 	TEST_CODE_LDLIBS	+= -llogger -lcommon -lcjson -lm -lpthread -lstdc++
 	TOOL_CENTER_LDLIBS	+= -llogger -lcommon -lcjson -lm -lreadline -lhistory -lpthread -lstdc++
 	SIGN_TOOL_LDLIBS	+= -lcustom_crypto -llogger -lcommon -lcjson -lssl -lcrypto -lm -lpthread -lstdc++
+	ELEVATOR_OUTER_LDLIBS	+= -lcommon -lcjson -lm -lpthread -lstdc++
+	ELEVATOR_INNER_LDLIBS	+= -lcommon -lcjson -lm -lpthread -lstdc++
 else
 	CRYPTO_TOOL_LDLIBS	+= -Wl,-Bstatic -lcustom_crypto -llogger -lcommon -lcjson -Wl,-Bdynamic -lssl -lcrypto -lm -lpthread -lstdc++
 	FFMPEG_TOOL_LDLIBS	+= -Wl,-Bstatic -llogger -lcommon -lcjson -Wl,-Bdynamic -lm -lpthread -lstdc++
 	TEST_CODE_LDLIBS	+= -Wl,-Bstatic -llogger -lcommon -lcjson -Wl,-Bdynamic -lm -lpthread -lstdc++
 	TOOL_CENTER_LDLIBS	+= -Wl,-Bstatic -llogger -lcommon -lcjson -Wl,-Bdynamic -lm -lreadline -lhistory -lpthread -lstdc++
 	SIGN_TOOL_LDLIBS	+= -Wl,-Bstatic -lcustom_crypto -llogger -lcommon -lcjson -Wl,-Bdynamic -lssl -lcrypto -lm -lpthread -lstdc++
+	ELEVATOR_OUTER_LDLIBS	+= -Wl,-Bstatic -lcommon -lcjson -Wl,-Bdynamic -lm -lpthread -lstdc++
+	ELEVATOR_INNER_LDLIBS	+= -Wl,-Bstatic -lcommon -lcjson -Wl,-Bdynamic -lm -lpthread -lstdc++
 endif
 
 .PHONY : all clean
@@ -95,5 +109,15 @@ sign_tool: $(SIGN_TOOL_OBJS)
 #	@echo "$(CC) $^"
 	$(CC) -o $@ $^ $(SIGN_TOOL_LDFLAGS) $(SIGN_TOOL_LDLIBS)
 
+elevator_outer: $(ELEVATOR_OUTER_OBJS)
+#	@echo "$(CC) $^"
+	$(CC) -o $@ $^ $(ELEVATOR_OUTER_LDFLAGS) $(ELEVATOR_OUTER_LDLIBS)
+
+elevator_inner: $(ELEVATOR_INNER_OBJS)
+#	@echo "$(CC) $^"
+	$(CC) -o $@ $^ $(ELEVATOR_INNER_LDFLAGS) $(ELEVATOR_INNER_LDLIBS)
+
 clean :
-	@$(RM) $(CRYPTO_TOOL_OBJS) $(FFMPEG_TOOL_OBJS) $(TEST_CODE_OBJS) $(TOOL_CENTER_OBJS) $(SIGN_TOOL_OBJS) $(CRYPTO_TOOL) $(FFMPEG_TOOL) $(TEST_CODE) $(TOOL_CENTER) $(SIGN_TOOL)
+	@$(RM) $(CRYPTO_TOOL_OBJS) $(FFMPEG_TOOL_OBJS) $(TEST_CODE_OBJS) $(TOOL_CENTER_OBJS) \
+			$(SIGN_TOOL_OBJS) $(CRYPTO_TOOL) $(FFMPEG_TOOL) $(TEST_CODE) $(TOOL_CENTER) \
+			$(SIGN_TOOL) $(ELEVATOR_OUTER) $(ELEVATOR_INNER) $(ELEVATOR_OUTER_OBJS) $(ELEVATOR_INNER_OBJS)

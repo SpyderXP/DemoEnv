@@ -174,10 +174,10 @@ static char *s_byte_log_buff = NULL;                /* BYTE LOG BUFFER */
 static char *s_suffix_log_buff = NULL;              /* LOG SUFFIX BUFFER */
 static char *s_whole_log_buff = NULL;               /* LOG PREFIX + SUFFIX BUFFER */
 
-static char *s_log_io_buf1 = NULL;                  /* LOG IO BUFFER BLOCK 1 */
-static char *s_log_io_buf2 = NULL;                  /* LOG IO BUFFER BLOCK 2 */
-static char *s_read_bufptr = NULL;                  /* READ BUFFER POINTER */
-static char *s_write_bufptr = NULL;                 /* WRITE BUFFER POINTER */
+// static char *s_log_io_buf1 = NULL;                  /* LOG IO BUFFER BLOCK 1 */
+// static char *s_log_io_buf2 = NULL;                  /* LOG IO BUFFER BLOCK 2 */
+// static char *s_read_bufptr = NULL;                  /* READ BUFFER POINTER */
+// static char *s_write_bufptr = NULL;                 /* WRITE BUFFER POINTER */
 
 static char s_system_cmdstr[CMD_SIZE] = {0};        /* 系统命令行字符串 */
 static MAIN_LOOP_FLAG_T s_loop_flag;                /* 控制主流程循环 */
@@ -185,7 +185,7 @@ static MAIN_LOOP_FLAG_T s_loop_flag;                /* 控制主流程循环 */
 int wrt_all_log(const char *log_buff, uint8_t level, const char *logname);
 
 /************************************************************************* 
-*  负责人    :  xupeng
+*  负责人    : xupeng
 *  创建日期  : 20210322
 *  函数功能  : 获取档案变更flag.
 *  输入参数  : 无.
