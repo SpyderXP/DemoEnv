@@ -57,14 +57,14 @@ typedef struct BUILDING_PARA_S
 /* 做成配置文件 */
 BUILDING_PARA_T building_height[] = 
 {
-    {-2, -100}, 
-    {-1, -50}, 
-    {1, 0}, 
-    {2, 40}, 
-    {3, 80}, 
-    {4, 120}, 
-    {5, 160}, 
-    {6, 200}
+    {-2,    -100,   false}, 
+    {-1,    -50,    false}, 
+    {1,     0,      false}, 
+    {2,     40,     false}, 
+    {3,     80,     false}, 
+    {4,     120,    false}, 
+    {5,     160,    false}, 
+    {6,     200,    false}
 };
 
 int g_client_fd_num = 0;
@@ -129,6 +129,23 @@ int getch()
     }
 }
 
+void parse_outer_tcp_msg(char *message, int message_len)
+{
+    int level = 0;
+
+    if (NULL == message)
+    {
+        return ;
+    }
+
+    sscanf(message, "%d", &level);
+
+    g_target_level = level;
+    g_move_flag = true;
+
+    return ;
+}
+
 void *tcp_msg_process_func(void *para)
 {
     int ret = 0;
@@ -144,7 +161,7 @@ void *tcp_msg_process_func(void *para)
                 g_client_fd_num = remove_obj_from_fdset(g_client_fd_set, g_client_fd_num, g_client_fd_set[i]);
             }
 
-            printf("recv tcp: %s\n", tcp_msg);
+            parse_outer_tcp_msg(tcp_msg, strlen(tcp_msg));
         }
 
         usleep(50000);
@@ -324,6 +341,20 @@ int signal_process(void)
     return 0;
 }
 
+void broadcast_elevator_level_info()
+{
+    char tcp_msg[512] = {0};
+
+    snprintf(tcp_msg, sizeof(tcp_msg), "%d", g_elevator_level);
+
+    for (int i = 0; i < g_client_fd_num; i++)
+    {
+        tcp_server_msg_send(g_client_fd_set[i], tcp_msg, strlen(tcp_msg) + 1);
+    }
+
+    return ;
+}
+
 /************************************************************************* 
 *  负责人    : xupeng
 *  创建日期  : 20260107
@@ -337,11 +368,6 @@ int main(int argc, char **argv)
     pthread_t button_monitor_pt = 0;
     pthread_t tcp_listen_pt = 0;
     pthread_t tcp_msg_process_pt = 0;
-
-    if (argc > 1)
-    {
-        g_target_level = atoi(argv[1]);
-    }
 
     set_conio_terminal_mode();      // 设置终端模式
     atexit(reset_terminal_mode);    // 确保程序退出时终端模式被重置
@@ -408,11 +434,7 @@ int main(int argc, char **argv)
 
         }
 
-
-        // g_elevator_level = calc_current_elevator_level_by_height(g_elevator_direction, g_elevator_height);
-
-
-
+        broadcast_elevator_level_info();
         usleep(50000);
     }
 

@@ -28,7 +28,7 @@
 #include <sys/select.h>
 #include "common_socket.h"
 
-int16_t g_self_level = 1;
+int g_self_level = 1;
 
 /* 当前电梯所在楼层（内外面板使用） */
 int16_t g_elevator_level = 1;
@@ -87,6 +87,7 @@ int getch()
 void *tcp_msg_process_func(void *para)
 {
     char tcp_msg[512] = {0};
+    int level = 0;
 
     g_client_fd = tcp_client_init(8081, "127.0.0.1");
     if (g_client_fd < 0)
@@ -99,18 +100,20 @@ void *tcp_msg_process_func(void *para)
     {
         if (tcp_client_recv_msg(g_client_fd, tcp_msg, sizeof(tcp_msg)) > 0)
         {
-            printf("tcp msg: %s\n", tcp_msg);
+            sscanf(tcp_msg, "%d", &level);
+            g_elevator_level = level;
         }
 
         usleep(50000);
     }
 }
 
-void handle_sigint(int sig)
+void handle_signal(int sig)
 {
     switch (sig)
     {
     case SIGINT: 
+        tcp_client_destroy(g_client_fd);
         exit(EXIT_SUCCESS);
         break;
 
@@ -119,6 +122,7 @@ void handle_sigint(int sig)
         break;
 
     default:
+        fprintf(stdout, "Recv unknown signal: %d\n", sig);
         break;
     }
 
@@ -133,7 +137,7 @@ int signal_process(void)
     memset(&act, 0, sizeof(act));
     memset(&oact, 0, sizeof(oact));
 
-    act.sa_handler = handle_sigint;
+    act.sa_handler = handle_signal;
     sigemptyset(&act.sa_mask);
     sigaddset(&act.sa_mask, SIGINT);
     sigaddset(&act.sa_mask, SIGPIPE);
@@ -152,6 +156,23 @@ int signal_process(void)
     }
 
     return 0;
+}
+
+void build_outer_tcp_msg(int level, char *tcp_msg, int msg_size)
+{
+    if (NULL == tcp_msg)
+    {
+        return ;
+    }
+
+    if (0 == level)
+    {
+        return ;
+    }
+
+    snprintf(tcp_msg, msg_size, "%d", level);
+
+    return ;
 }
 
 /************************************************************************* 
@@ -204,24 +225,22 @@ int main(int argc, char **argv)
                     switch (button)
                     {
                     case 'A':   // 方向上.
-                        snprintf(tcp_msg, sizeof(tcp_msg), "UP");
-
+                        build_outer_tcp_msg(g_self_level, tcp_msg, sizeof(tcp_msg));
                         if (g_client_fd > 0)
                         {
                             if (tcp_client_send_msg(g_client_fd, tcp_msg, strlen(tcp_msg)) < 0)
                             {
-                                printf("tcp client send msg failed\n");
+                                fprintf(stdout, "tcp client send msg failed\n");
                             }
                         }
                         break;
                     case 'B':   // 方向下.
-                        snprintf(tcp_msg, sizeof(tcp_msg), "DOWN");
-
+                        build_outer_tcp_msg(g_self_level, tcp_msg, sizeof(tcp_msg));
                         if (g_client_fd > 0)
                         {
                             if (tcp_client_send_msg(g_client_fd, tcp_msg, strlen(tcp_msg)) < 0)
                             {
-                                printf("tcp client send msg failed\n");
+                                fprintf(stdout, "tcp client send msg failed\n");
                             }
                         }
                         break;

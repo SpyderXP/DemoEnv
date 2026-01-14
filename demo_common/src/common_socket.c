@@ -108,7 +108,7 @@ int tcp_server_msg_recv(int client_fd, char *message, int message_size)
         return -1;
     }
 
-    return 0;
+    return readsize;
 }
 
 void tcp_server_destroy(int sock)
